@@ -39,3 +39,4 @@ coverage/
 
 # Local / hidden
 .local/
+.store/
