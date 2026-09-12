@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scanline</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="28" height="28" rx="6" fill="#6C5CE7"/>
+          <path d="M7 14L12 9L17 14L12 19Z" fill="white" opacity="0.9"/>
+          <path d="M11 14L16 9L21 14L16 19Z" fill="white" opacity="0.6"/>
+        </svg>
+        <h1>Scanline</h1>
+      </div>
+      <button id="scanBtn" class="scan-btn">Scan</button>
+    </header>
+
+    <div id="loading" class="loading hidden">
+      <div class="spinner"></div>
+      <span>Analyzing page...</span>
+    </div>
+
+    <div id="results" class="results hidden">
+      <div class="url-bar">
+        <span id="pageUrl" class="page-url"></span>
+      </div>
+
+      <div class="score-section">
+        <div class="score-ring">
+          <svg viewBox="0 0 120 120">
+            <circle cx="60" cy="60" r="54" stroke="#2a2a3e" stroke-width="8" fill="none"/>
+            <circle id="scoreCircle" cx="60" cy="60" r="54" stroke="#6C5CE7" stroke-width="8" fill="none"
+              stroke-dasharray="339.292" stroke-dashoffset="339.292" stroke-linecap="round"
+              transform="rotate(-90 60 60)"/>
+          </svg>
+          <div class="score-text">
+            <span id="scoreValue" class="score-number">0</span>
+            <span class="score-label">/ 100</span>
+          </div>
+        </div>
+        <div id="scoreLabel" class="score-grade">Analyzing...</div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">Overview</button>
+        <button class="tab" data-tab="stack">Stack</button>
+        <button class="tab" data-tab="security">Security</button>
+        <button class="tab" data-tab="performance">Performance</button>
+        <button class="tab" data-tab="seo">SEO</button>
+      </div>
+
+      <div id="tabContent" class="tab-content">
+        <!-- Dynamically populated -->
+      </div>
+    </div>
+
+    <div id="welcome" class="welcome">
+      <div class="welcome-icon">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="48" height="48" rx="12" fill="#6C5CE7" opacity="0.15"/>
+          <path d="M12 24L20 16L28 24L20 32Z" fill="#6C5CE7" opacity="0.7"/>
+          <path d="M18 24L26 16L34 24L26 32Z" fill="#6C5CE7" opacity="0.4"/>
+        </svg>
+      </div>
+      <h2>Audit any website</h2>
+      <p>Click <strong>Scan</strong> to analyze the current page for tech stack, security, performance, and SEO.</p>
+    </div>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>
