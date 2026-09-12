@@ -36,3 +36,6 @@ npm-debug.log*
 coverage/
 .cache/
 .tmp/
+
+# Local / hidden
+.local/
