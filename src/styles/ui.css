@@ -2,29 +2,30 @@
 
 :root {
   color-scheme: light;
-  --bg: #f6f6fb;
+  --bg: #f5f6fa;
   --surface: #ffffff;
-  --surface-2: #f1f0f8;
-  --surface-3: #e7e5f3;
-  --border: #e2e0ee;
-  --border-strong: #cbc8df;
-  --text: #1a1930;
-  --text-2: #4f4d66;
-  --text-3: #6e6c84;
-  --accent: #6c5ce7;
-  --accent-text: #5646d6;
-  --accent-soft: rgba(108, 92, 231, 0.12);
-  --btn: #6c5ce7;
-  --btn-hover: #5a4bd1;
+  --surface-2: #eff1f8;
+  --surface-3: #e3e6f1;
+  --border: #dfe2ee;
+  --border-strong: #c8cde0;
+  --text: #16161c;
+  --text-2: #4a4c5c;
+  --text-3: #686b7e;
+  --accent: #6b8aff;
+  --accent-text: #3f5fe0;
+  --accent-soft: rgba(107, 138, 255, 0.14);
+  --btn: #6b8aff;
+  --on-btn: #14131a;
+  --btn-hover: #8199ff;
   --good: #067a55;
   --good-soft: rgba(6, 122, 85, 0.11);
   --ok: #9a6200;
   --ok-soft: rgba(214, 158, 46, 0.17);
   --bad: #c9372b;
   --bad-soft: rgba(201, 55, 43, 0.1);
-  --info: #5a57d6;
-  --info-soft: rgba(90, 87, 214, 0.11);
-  --none: #9a98ad;
+  --info: #3f5fe0;
+  --info-soft: rgba(63, 95, 224, 0.1);
+  --none: #9a9cab;
   --shadow: 0 1px 2px rgba(20, 18, 50, 0.06), 0 4px 16px rgba(20, 18, 50, 0.06);
   --radius: 10px;
   --radius-sm: 7px;
@@ -42,27 +43,27 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #0f0f1a;
-    --surface: #17172a;
-    --surface-2: #1f1f36;
-    --surface-3: #292945;
-    --border: #2b2b47;
-    --border-strong: #3d3d60;
-    --text: #ececf6;
-    --text-2: #b3b2c9;
-    --text-3: #8d8ca6;
-    --accent: #8b7dff;
-    --accent-text: #a79dff;
-    --accent-soft: rgba(139, 125, 255, 0.16);
+    --bg: #16151a;
+    --surface: #1e1d22;
+    --surface-2: #26252c;
+    --surface-3: #302f38;
+    --border: #2d2c34;
+    --border-strong: #403f4a;
+    --text: #ededf2;
+    --text-2: #b5b4c1;
+    --text-3: #8f8e9d;
+    --accent: #6b8aff;
+    --accent-text: #8fa6ff;
+    --accent-soft: rgba(107, 138, 255, 0.16);
     --good: #34d399;
     --good-soft: rgba(52, 211, 153, 0.13);
     --ok: #fbbf24;
     --ok-soft: rgba(251, 191, 36, 0.13);
     --bad: #ff7b6b;
     --bad-soft: rgba(255, 123, 107, 0.13);
-    --info: #a9a7ff;
-    --info-soft: rgba(169, 167, 255, 0.13);
-    --none: #6b6a82;
+    --info: #9fb2ff;
+    --info-soft: rgba(143, 166, 255, 0.14);
+    --none: #6a6977;
     --series-1: #3987e5;
     --series-2: #d95926;
     --series-3: #199e70;
@@ -75,27 +76,27 @@
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --bg: #0f0f1a;
-  --surface: #17172a;
-  --surface-2: #1f1f36;
-  --surface-3: #292945;
-  --border: #2b2b47;
-  --border-strong: #3d3d60;
-  --text: #ececf6;
-  --text-2: #b3b2c9;
-  --text-3: #8d8ca6;
-  --accent: #8b7dff;
-  --accent-text: #a79dff;
-  --accent-soft: rgba(139, 125, 255, 0.16);
+  --bg: #16151a;
+  --surface: #1e1d22;
+  --surface-2: #26252c;
+  --surface-3: #302f38;
+  --border: #2d2c34;
+  --border-strong: #403f4a;
+  --text: #ededf2;
+  --text-2: #b5b4c1;
+  --text-3: #8f8e9d;
+  --accent: #6b8aff;
+  --accent-text: #8fa6ff;
+  --accent-soft: rgba(107, 138, 255, 0.16);
   --good: #34d399;
   --good-soft: rgba(52, 211, 153, 0.13);
   --ok: #fbbf24;
   --ok-soft: rgba(251, 191, 36, 0.13);
   --bad: #ff7b6b;
   --bad-soft: rgba(255, 123, 107, 0.13);
-  --info: #a9a7ff;
-  --info-soft: rgba(169, 167, 255, 0.13);
-  --none: #6b6a82;
+  --info: #9fb2ff;
+  --info-soft: rgba(143, 166, 255, 0.14);
+  --none: #6a6977;
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
@@ -188,7 +189,7 @@ button {
 .btn:hover { background: var(--surface-2); }
 .btn:active { transform: translateY(1px); }
 .btn:disabled { opacity: 0.55; cursor: default; transform: none; }
-.btn.primary { background: var(--btn); border-color: var(--btn); color: #fff; }
+.btn.primary { background: var(--btn); border-color: var(--btn); color: var(--on-btn); }
 .btn.primary:hover { background: var(--btn-hover); border-color: var(--btn-hover); }
 .btn.small { height: 26px; padding: 0 9px; font-size: 12px; border-radius: 7px; }
 .btn.ghost { background: transparent; border-color: transparent; }
@@ -688,8 +689,8 @@ details[open] > summary .chev { transform: rotate(90deg); }
   pointer-events: none;
   padding: 8px 14px;
   border-radius: 9px;
-  background: #17152b;
-  color: #fff;
+  background: #1e1d22;
+  color: #ededf2;
   font-size: 12.5px;
   font-weight: 600;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
