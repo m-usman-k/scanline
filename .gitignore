@@ -6,6 +6,8 @@ package-lock.json
 dist/
 build/
 *.zip
+*.crx
+*.pem
 
 # IDE / Editor
 .vscode/
@@ -19,10 +21,6 @@ build/
 Thumbs.db
 Desktop.ini
 
-# Chrome extension
-*.crx
-*.pem
-
 # Environment
 .env
 .env.local
@@ -32,11 +30,13 @@ Desktop.ini
 *.log
 npm-debug.log*
 
-# Misc
+# Tooling output
 coverage/
 .cache/
 .tmp/
+graphify-out/
 
-# Local / hidden
+# Local / private (dev scripts, store submission assets, reference images, notes)
 .local/
 .store/
+.manifest

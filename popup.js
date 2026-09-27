@@ -1,348 +1,539 @@
-let currentTab = 'overview';
-let lastResults = null;
+import {
+  h, clear, icon, ring, bar, delta, tone, checkGroups, checkItem, countsLine, stackList, stackChips,
+  vitalsGrid, keyFacts, resourceBreakdown, thirdPartyTable, largestTable, headersTable, serpPreview,
+  socialPreview, headingOutline, designSection, tagIds, copyText, toast, applyTheme, CATEGORY_ICONS,
+} from './lib/ui.js';
+import { logo } from './lib/icons.js';
+import { CATEGORIES } from './lib/audit.js';
+import { topIssues } from './lib/score.js';
+import { scanTab, mergeDeep, highlightInTab, ScanError } from './lib/scan.js';
+import { deepScan } from './lib/deep.js';
+import { getSettings, saveSettings, saveScan, updateScan, previousScan, getHistory, clearHistory } from './lib/store.js';
+import { compareResults } from './lib/compare.js';
+import { summaryText } from './lib/export.js';
+import { EXT_VERSION, relativeTime, scanBlockReason, shortUrl, plural } from './lib/util.js';
 
-const $ = (sel) => document.querySelector(sel);
-const $$ = (sel) => document.querySelectorAll(sel);
+const TABS = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'security', label: 'Security' },
+  { id: 'performance', label: 'Speed', title: 'Performance' },
+  { id: 'seo', label: 'SEO' },
+  { id: 'accessibility', label: 'A11y', title: 'Accessibility' },
+  { id: 'privacy', label: 'Privacy' },
+  { id: 'stack', label: 'Stack', title: 'Technology stack' },
+];
 
-function init() {
-  $('#scanBtn').addEventListener('click', runScan);
-  $$('.tab').forEach((tab) => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab));
-  });
+const state = {
+  tab: null,
+  settings: null,
+  result: null,
+  comparison: null,
+  activeTab: 'overview',
+  filter: 'all',
+  stackQuery: '',
+  scanning: false,
+};
+
+const $view = document.getElementById('view');
+const $scan = document.getElementById('btnScan');
+const $report = document.getElementById('btnReport');
+
+// ---------------------------------------------------------------- boot
+
+async function init() {
+  state.settings = await getSettings();
+  applyTheme(state.settings.theme);
+
+  document.getElementById('brand').prepend(logo(22));
+  document.getElementById('btnHistory').append(icon('clock', 17));
+  $report.append(icon('file', 17));
+  document.getElementById('btnSettings').append(icon('sliders', 17));
+  document.getElementById('foot').prepend(icon('lock', 12));
+
+  $scan.addEventListener('click', () => runScan());
+  $report.addEventListener('click', openReport);
+  document.getElementById('btnHistory').addEventListener('click', () => toggleView('history'));
+  document.getElementById('btnSettings').addEventListener('click', () => toggleView('settings'));
+
+  state.tab = await resolveTab();
+  if (!state.tab) return renderMessage({ title: 'No tab to scan', text: 'Open a website and try again.', error: true });
+  const blocked = scanBlockReason(state.tab.url);
+  if (blocked) {
+    $scan.disabled = true;
+    return renderMessage({ title: 'This page can’t be scanned', text: blocked, error: true });
+  }
+
+  if (state.settings.autoScan) return runScan();
+
+  const prev = await previousScan(state.tab.url);
+  if (prev && prev.result) {
+    state.result = prev.result;
+    return renderResults();
+  }
+  renderWelcome();
 }
 
-async function runScan() {
-  const btn = $('#scanBtn');
-  btn.disabled = true;
-  btn.textContent = 'Scanning...';
-
-  $('#welcome').classList.add('hidden');
-  $('#results').classList.add('hidden');
-  $('#loading').classList.remove('hidden');
-
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (!tab || !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://')) {
-      throw new Error('Cannot scan this page');
-    }
-
-    const response = await chrome.tabs.sendMessage(tab.id, { type: 'SCAN' });
-
-    // Get security headers from background
-    let securityHeaders = {};
+async function resolveTab() {
+  const id = Number(new URLSearchParams(location.search).get('tabId'));
+  if (id) {
     try {
-      const headerResponse = await chrome.runtime.sendMessage({
-        type: 'GET_SECURITY_HEADERS',
-        tabId: tab.id,
-      });
-      securityHeaders = headerResponse.headers || {};
-    } catch (e) { /* skip */ }
-
-    // Add header checks to security
-    const headerChecks = analyzeHeaders(securityHeaders);
-    response.security = [...response.security, ...headerChecks];
-    response.score = calculateScore(response.health, response.performance, response.security);
-
-    lastResults = response;
-    displayResults(response);
-  } catch (err) {
-    $('#loading').classList.add('hidden');
-    $('#welcome').classList.remove('hidden');
-    alert('Scan failed: ' + err.message);
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Scan';
-  }
-}
-
-function analyzeHeaders(headers) {
-  const checks = [];
-
-  checks.push({
-    name: 'Content-Security-Policy',
-    detail: headers['content-security-policy'] ? 'Set' : 'Not set',
-    status: headers['content-security-policy'] ? 'pass' : 'warn',
-    icon: headers['content-security-policy'] ? '✓' : '⚠',
-    iconClass: headers['content-security-policy'] ? 'green' : 'yellow',
-  });
-
-  checks.push({
-    name: 'Strict-Transport-Security',
-    detail: headers['strict-transport-security'] ? 'Set' : 'Not set',
-    status: headers['strict-transport-security'] ? 'pass' : 'warn',
-    icon: headers['strict-transport-security'] ? '✓' : '⚠',
-    iconClass: headers['strict-transport-security'] ? 'green' : 'yellow',
-  });
-
-  checks.push({
-    name: 'X-Content-Type-Options',
-    detail: headers['x-content-type-options'] === 'nosniff' ? 'nosniff' : 'Not set or wrong value',
-    status: headers['x-content-type-options'] === 'nosniff' ? 'pass' : 'warn',
-    icon: headers['x-content-type-options'] === 'nosniff' ? '✓' : '⚠',
-    iconClass: headers['x-content-type-options'] === 'nosniff' ? 'green' : 'yellow',
-  });
-
-  checks.push({
-    name: 'X-Frame-Options',
-    detail: headers['x-frame-options'] ? 'Set' : 'Not set',
-    status: headers['x-frame-options'] ? 'pass' : 'warn',
-    icon: headers['x-frame-options'] ? '✓' : '⚠',
-    iconClass: headers['x-frame-options'] ? 'green' : 'yellow',
-  });
-
-  checks.push({
-    name: 'Referrer-Policy',
-    detail: headers['referrer-policy'] || 'Not set',
-    status: headers['referrer-policy'] ? 'pass' : 'info',
-    icon: headers['referrer-policy'] ? '✓' : 'i',
-    iconClass: headers['referrer-policy'] ? 'green' : 'blue',
-  });
-
-  checks.push({
-    name: 'Permissions-Policy',
-    detail: headers['permissions-policy'] ? 'Set' : 'Not set',
-    status: headers['permissions-policy'] ? 'pass' : 'info',
-    icon: headers['permissions-policy'] ? '✓' : 'i',
-    iconClass: headers['permissions-policy'] ? 'green' : 'blue',
-  });
-
-  checks.push({
-    name: 'Cross-Origin-Opener-Policy',
-    detail: headers['cross-origin-opener-policy'] ? 'Set' : 'Not set',
-    status: headers['cross-origin-opener-policy'] ? 'pass' : 'info',
-    icon: headers['cross-origin-opener-policy'] ? '✓' : 'i',
-    iconClass: headers['cross-origin-opener-policy'] ? 'green' : 'blue',
-  });
-
-  return checks;
-}
-
-function calculateScore(health, perf, security) {
-  const allItems = [...health, ...perf, ...security];
-  if (allItems.length === 0) return 0;
-
-  let score = 0;
-  let total = 0;
-
-  for (const item of allItems) {
-    total += 10;
-    if (item.status === 'pass') score += 10;
-    else if (item.status === 'warn') score += 5;
-    else if (item.status === 'info') score += 7;
-    else score += 0;
-  }
-
-  return Math.round((score / total) * 100) || 0;
-}
-
-function displayResults(data) {
-  $('#loading').classList.add('hidden');
-  $('#results').classList.remove('hidden');
-  $('#pageUrl').textContent = data.url;
-
-  updateScore(data.score);
-  switchTab(currentTab);
-}
-
-function updateScore(score) {
-  const circle = $('#scoreCircle');
-  const circumference = 339.292;
-  const offset = circumference - (score / 100) * circumference;
-  circle.style.strokeDashoffset = offset;
-
-  const scoreValue = $('#scoreValue');
-  animateNumber(scoreValue, 0, score, 800);
-
-  const grade = $('#scoreLabel');
-  if (score >= 80) {
-    grade.textContent = 'Excellent';
-    grade.className = 'score-grade good';
-    circle.style.stroke = '#00b894';
-  } else if (score >= 60) {
-    grade.textContent = 'Good';
-    grade.className = 'score-grade fair';
-    circle.style.stroke = '#fdcb6e';
-  } else {
-    grade.textContent = 'Needs Work';
-    grade.className = 'score-grade poor';
-    circle.style.stroke = '#e17055';
-  }
-}
-
-function animateNumber(el, from, to, duration) {
-  const start = performance.now();
-  function update(now) {
-    const elapsed = now - start;
-    const progress = Math.min(elapsed / duration, 1);
-    const eased = 1 - Math.pow(1 - progress, 3);
-    el.textContent = Math.round(from + (to - from) * eased);
-    if (progress < 1) requestAnimationFrame(update);
-  }
-  requestAnimationFrame(update);
-}
-
-function switchTab(tabName) {
-  currentTab = tabName;
-  $$('.tab').forEach((t) => {
-    t.classList.toggle('active', t.dataset.tab === tabName);
-  });
-
-  if (!lastResults) {
-    $('#tabContent').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>Click Scan to analyze this page</div>';
-    return;
-  }
-
-  const content = $('#tabContent');
-
-  switch (tabName) {
-    case 'overview':
-      content.innerHTML = renderOverview(lastResults);
-      break;
-    case 'stack':
-      content.innerHTML = renderStack(lastResults.techStack);
-      break;
-    case 'security':
-      content.innerHTML = renderItems(lastResults.security, 'Security Checks');
-      break;
-    case 'performance':
-      content.innerHTML = renderItems(lastResults.performance, 'Performance Metrics');
-      break;
-    case 'seo':
-      content.innerHTML = renderItems(lastResults.health, 'SEO & Health');
-      break;
-  }
-}
-
-function renderOverview(data) {
-  const passCount = [...data.health, ...data.performance, ...data.security].filter(i => i.status === 'pass').length;
-  const warnCount = [...data.health, ...data.performance, ...data.security].filter(i => i.status === 'warn').length;
-  const failCount = [...data.health, ...data.performance, ...data.security].filter(i => i.status === 'fail').length;
-
-  const securityScore = calcCategoryScore(data.security);
-  const perfScore = calcCategoryScore(data.performance);
-  const seoScore = calcCategoryScore(data.health);
-
-  return `
-    <div class="stats-row">
-      <div class="stat-card">
-        <div class="stat-value" style="color:#00b894">${passCount}</div>
-        <div class="stat-label">Passed</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:#fdcb6e">${warnCount}</div>
-        <div class="stat-label">Warnings</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-value" style="color:#e17055">${failCount}</div>
-        <div class="stat-label">Failed</div>
-      </div>
-    </div>
-    <div class="category-summary">
-      <div class="category-card" onclick="document.querySelector('[data-tab=security]').click()">
-        <div class="category-card-header">
-          <span class="category-card-title">Security</span>
-          <span class="category-card-score" style="color:${getScoreColor(securityScore)}">${securityScore}</span>
-        </div>
-        <div class="category-card-bar">
-          <div class="category-card-bar-fill" style="width:${securityScore}%;background:${getScoreColor(securityScore)}"></div>
-        </div>
-      </div>
-      <div class="category-card" onclick="document.querySelector('[data-tab=performance]').click()">
-        <div class="category-card-header">
-          <span class="category-card-title">Performance</span>
-          <span class="category-card-score" style="color:${getScoreColor(perfScore)}">${perfScore}</span>
-        </div>
-        <div class="category-card-bar">
-          <div class="category-card-bar-fill" style="width:${perfScore}%;background:${getScoreColor(perfScore)}"></div>
-        </div>
-      </div>
-      <div class="category-card" onclick="document.querySelector('[data-tab=seo]').click()">
-        <div class="category-card-header">
-          <span class="category-card-title">SEO & Health</span>
-          <span class="category-card-score" style="color:${getScoreColor(seoScore)}">${seoScore}</span>
-        </div>
-        <div class="category-card-bar">
-          <div class="category-card-bar-fill" style="width:${seoScore}%;background:${getScoreColor(seoScore)}"></div>
-        </div>
-      </div>
-      <div class="category-card" onclick="document.querySelector('[data-tab=stack]').click()">
-        <div class="category-card-header">
-          <span class="category-card-title">Tech Stack</span>
-          <span class="category-card-score" style="color:#6C5CE7">${data.techStack.length}</span>
-        </div>
-        <div class="category-card-bar">
-          <div class="category-card-bar-fill" style="width:${Math.min(data.techStack.length * 10, 100)}%;background:#6C5CE7"></div>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function calcCategoryScore(items) {
-  if (items.length === 0) return 0;
-  let score = 0;
-  for (const item of items) {
-    if (item.status === 'pass') score += 100;
-    else if (item.status === 'warn') score += 50;
-    else if (item.status === 'info') score += 70;
-  }
-  return Math.round(score / items.length);
-}
-
-function getScoreColor(score) {
-  if (score >= 80) return '#00b894';
-  if (score >= 50) return '#fdcb6e';
-  return '#e17055';
-}
-
-function renderStack(stack) {
-  if (stack.length === 0) {
-    return '<div class="empty-state"><div class="empty-state-icon">🔍</div>No technologies detected</div>';
-  }
-
-  const categories = {};
-  for (const item of stack) {
-    if (!categories[item.category]) categories[item.category] = [];
-    categories[item.category].push(item);
-  }
-
-  let html = '';
-  for (const [category, items] of Object.entries(categories)) {
-    html += `<div class="section-title">${category}</div>`;
-    for (const item of items) {
-      html += `
-        <div class="item">
-          <div class="item-icon blue">⚡</div>
-          <div class="item-info">
-            <div class="item-name">${item.name}</div>
-          </div>
-          <span class="item-badge info">Detected</span>
-        </div>
-      `;
+      return await chrome.tabs.get(id);
+    } catch {
+      return null;
     }
   }
-  return html;
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tab || null;
 }
 
-function renderItems(items, title) {
-  if (items.length === 0) {
-    return '<div class="empty-state"><div class="empty-state-icon">📋</div>No data available</div>';
-  }
+// ---------------------------------------------------------------- scanning
 
-  let html = `<div class="section-title">${title}</div>`;
-  for (const item of items) {
-    html += `
-      <div class="item">
-        <div class="item-icon ${item.iconClass}">${item.icon}</div>
-        <div class="item-info">
-          <div class="item-name">${item.name}</div>
-          <div class="item-detail">${item.detail}</div>
-        </div>
-        <span class="item-badge ${item.status}">${item.status === 'pass' ? 'Pass' : item.status === 'warn' ? 'Warn' : item.status === 'fail' ? 'Fail' : 'Info'}</span>
-      </div>
-    `;
+async function runScan({ reload = false } = {}) {
+  if (state.scanning || !state.tab) return;
+  state.scanning = true;
+  $scan.disabled = true;
+  $scan.textContent = 'Scanning…';
+  state.view = 'results';
+
+  const steps = ['Injecting scanner', 'Reading the page', 'Analyzing'];
+  renderLoading(steps, reload ? 'Reloading page' : steps[0]);
+  try {
+    if (reload) await reloadTab(state.tab.id);
+    const result = await scanTab(state.tab, { onProgress: (msg) => renderLoading(steps, msg) });
+    const prev = await previousScan(result.url, result.id);
+    state.comparison = prev ? compareResults(result, prev.result || prev.entry) : null;
+    state.result = result;
+    await saveScan(result, { keepHistory: state.settings.history });
+    setBadge(result);
+    renderResults();
+  } catch (e) {
+    console.error(e);
+    renderMessage({ title: 'Scan failed', text: e instanceof ScanError ? e.message : String((e && e.message) || e), error: true, retry: true });
+  } finally {
+    state.scanning = false;
+    $scan.disabled = false;
+    $scan.textContent = 'Rescan';
   }
-  return html;
 }
 
-document.addEventListener('DOMContentLoaded', init);
+function reloadTab(tabId) {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(done, 20000);
+    function done() {
+      clearTimeout(timeout);
+      chrome.tabs.onUpdated.removeListener(listener);
+      // Give late layout shifts and LCP candidates a moment to settle.
+      setTimeout(resolve, 1200);
+    }
+    function listener(id, info) {
+      if (id === tabId && info.status === 'complete') done();
+    }
+    chrome.tabs.onUpdated.addListener(listener);
+    chrome.tabs.reload(tabId, { bypassCache: false });
+  });
+}
+
+function setBadge(result) {
+  if (!state.settings.badge) return;
+  const s = result.scores.overall;
+  const color = s >= 90 ? '#067a55' : s >= 60 ? '#9a6200' : '#c9372b';
+  const tabId = state.tab.id;
+  chrome.action.setBadgeText({ tabId, text: String(s) }).catch(() => {});
+  chrome.action.setBadgeBackgroundColor({ tabId, color }).catch(() => {});
+  if (chrome.action.setBadgeTextColor) chrome.action.setBadgeTextColor({ tabId, color: '#ffffff' }).catch(() => {});
+}
+
+async function onHighlight(key, index) {
+  try {
+    const res = await highlightInTab(state.tab.id, key, index);
+    if (res && res.ok) toast(index == null ? `Highlighted ${plural(res.count, 'element')} on the page` : 'Scrolled to the element on the page');
+    else if (res && res.missing) toast('Rescan the page to highlight elements');
+    else toast('Those elements are no longer on the page');
+  } catch {
+    toast('Could not highlight on this page');
+  }
+}
+
+function openReport() {
+  if (!state.result) return;
+  chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?id=${encodeURIComponent(state.result.id)}`) });
+}
+
+async function runDeep(btn) {
+  btn.disabled = true;
+  const label = btn.querySelector('span') || btn;
+  try {
+    const d = await deepScan(state.result, { onProgress: (m) => { label.textContent = `Checking ${m}…`; } });
+    state.result = mergeDeep(state.result, d);
+    await updateScan(state.result);
+    setBadge(state.result);
+    renderResults();
+    toast('Site files checked');
+  } catch (e) {
+    toast(`Deep scan failed: ${e.message || e}`);
+    btn.disabled = false;
+    label.textContent = 'Run deep scan';
+  }
+}
+
+// ---------------------------------------------------------------- views
+
+function toggleView(view) {
+  if (state.view === view) {
+    state.view = 'results';
+    return state.result ? renderResults() : renderWelcome();
+  }
+  state.view = view;
+  if (view === 'history') renderHistory();
+  if (view === 'settings') renderSettings();
+}
+
+function setPressed() {
+  document.getElementById('btnHistory').setAttribute('aria-pressed', String(state.view === 'history'));
+  document.getElementById('btnSettings').setAttribute('aria-pressed', String(state.view === 'settings'));
+  $report.disabled = !state.result;
+}
+
+function renderLoading(steps, current) {
+  setPressed();
+  const idx = Math.max(0, steps.indexOf(current));
+  clear($view).append(h('div', { class: 'state' },
+    h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Scanning' }),
+    h('h2', {}, 'Scanning page'),
+    h('ol', { class: 'steps' }, steps.map((s, i) => h('li', { class: i < idx ? 'done' : i === idx ? 'active' : '' }, icon(i < idx ? 'check' : 'chevron', 12), s))),
+    h('p', { class: 'muted small' }, 'Everything is analyzed locally in your browser.')));
+}
+
+function renderMessage({ title, text, error = false, retry = false }) {
+  setPressed();
+  clear($view).append(h('div', { class: `state${error ? ' error' : ''}` },
+    h('div', { class: 'state-icon' }, icon(error ? 'alert' : 'info', 26)),
+    h('h2', {}, title),
+    h('p', {}, text),
+    retry ? h('button', { class: 'btn primary', type: 'button', onclick: () => runScan() }, icon('refresh', 14), 'Try again') : null));
+}
+
+function renderWelcome() {
+  setPressed();
+  $scan.textContent = 'Scan';
+  const features = [
+    ['shield', 'Security headers & CSP'], ['gauge', 'Core Web Vitals'], ['search', 'SEO & social previews'],
+    ['person', 'Accessibility & contrast'], ['eyeOff', 'Trackers & privacy'], ['layers', '400+ technologies'],
+  ];
+  clear($view).append(h('div', { class: 'state' },
+    h('div', { class: 'state-icon' }, logo(30)),
+    h('h2', {}, 'Audit this page'),
+    h('p', {}, 'Scanline checks security, speed, SEO, accessibility and privacy, and identifies the tech stack, without sending anything to a server.'),
+    h('button', { class: 'btn primary', type: 'button', onclick: () => runScan() }, icon('zap', 14), 'Scan this page'),
+    h('ul', { class: 'feature-list' }, features.map(([ic, text]) => h('li', {}, icon(ic, 15), text)))));
+}
+
+function renderResults() {
+  const r = state.result;
+  if (!r) return renderWelcome();
+  state.view = 'results';
+  setPressed();
+  $scan.textContent = 'Rescan';
+
+  const frag = document.createDocumentFragment();
+  frag.append(hero(r));
+
+  if (!r.insights.page.headersCaptured) {
+    frag.append(h('div', { class: 'banner s-warn', style: { marginTop: '10px' } },
+      icon('alert', 16),
+      h('div', { class: 'banner-body' },
+        h('span', {}, 'Response headers weren’t captured because this page loaded before Scanline was active. Header, cookie and server checks are incomplete.'),
+        h('div', {}, h('button', { class: 'btn small', type: 'button', onclick: () => runScan({ reload: true }) }, icon('refresh', 13), 'Reload page & rescan')))));
+  }
+
+  const tablist = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Report sections' });
+  for (const t of TABS) {
+    const cat = r.scores.categories[t.id];
+    const hasFail = cat && cat.counts.fail > 0;
+    tablist.append(h('button', {
+      class: 'tab', role: 'tab', type: 'button', id: `tab-${t.id}`, title: t.title || t.label,
+      'aria-selected': String(state.activeTab === t.id), 'aria-controls': 'panel', tabindex: state.activeTab === t.id ? '0' : '-1',
+      onclick: () => selectTab(t.id),
+      onkeydown: onTabKey,
+      dataset: { tab: t.id },
+    }, t.label, hasFail ? h('span', { class: 'tab-dot s-fail', 'aria-hidden': 'true' }) : null));
+  }
+  frag.append(tablist);
+  frag.append(h('section', { id: 'panel', role: 'tabpanel', 'aria-labelledby': `tab-${state.activeTab}` }, renderPanel(state.activeTab)));
+  clear($view).append(frag);
+}
+
+function onTabKey(e) {
+  const i = TABS.findIndex((t) => t.id === state.activeTab);
+  let next = null;
+  if (e.key === 'ArrowRight') next = TABS[(i + 1) % TABS.length];
+  if (e.key === 'ArrowLeft') next = TABS[(i - 1 + TABS.length) % TABS.length];
+  if (e.key === 'Home') next = TABS[0];
+  if (e.key === 'End') next = TABS[TABS.length - 1];
+  if (next) {
+    e.preventDefault();
+    selectTab(next.id);
+    document.getElementById(`tab-${next.id}`).focus();
+  }
+}
+
+function selectTab(id) {
+  state.activeTab = id;
+  state.filter = 'all';
+  for (const el of document.querySelectorAll('.tab')) {
+    const on = el.dataset.tab === id;
+    el.setAttribute('aria-selected', String(on));
+    el.tabIndex = on ? 0 : -1;
+  }
+  const panel = document.getElementById('panel');
+  if (!panel) return renderResults();
+  panel.setAttribute('aria-labelledby', `tab-${id}`);
+  clear(panel).append(renderPanel(id));
+  const tabs = document.querySelector('.tabs');
+  if (tabs && window.scrollY > tabs.offsetTop - 52) window.scrollTo({ top: tabs.offsetTop - 52 });
+}
+
+function hero(r) {
+  const s = r.scores;
+  let path = r.url;
+  try {
+    const u = new URL(r.url);
+    path = u.pathname + u.search;
+  } catch { /* ignore */ }
+  const c = state.comparison;
+  return h('section', { class: 'hero', 'aria-label': 'Scores' },
+    ring(s.overall, { size: 96, grade: s.grade }),
+    h('div', { class: 'hero-main' },
+      h('div', { class: 'hero-host', title: r.url }, r.host || r.url),
+      h('div', { class: 'hero-meta' },
+        h('span', {}, `${shortUrl(path, 34) || '/'} · ${relativeTime(r.scannedAt)}`),
+        c && c.scoreDelta ? delta(c.scoreDelta) : null),
+      h('div', { class: 'cat-rows' }, CATEGORIES.map((cat) => {
+        const cs = s.categories[cat.id];
+        return h('button', { class: `cat-row tone-${tone(cs.score)}`, type: 'button', onclick: () => selectTab(cat.id), title: `${cat.label}: ${cs.counts.fail} failed, ${cs.counts.warn} warnings` },
+          h('span', { class: 'cat-icon' }, icon(CATEGORY_ICONS[cat.id], 13)),
+          h('span', { class: 'cat-name' }, cat.label),
+          bar(cs.score),
+          h('span', { class: 'cat-score' }, cs.score ?? '–'));
+      }))));
+}
+
+// ---------------------------------------------------------------- panels
+
+function renderPanel(id) {
+  const r = state.result;
+  switch (id) {
+    case 'overview': return overviewPanel(r);
+    case 'stack': return stackPanel(r);
+    default: return categoryPanel(r, id);
+  }
+}
+
+function overviewPanel(r) {
+  const frag = document.createDocumentFragment();
+  const c = state.comparison;
+  if (c && (c.fixed.length || c.regressed.length || c.scoreDelta)) {
+    frag.append(h('div', { class: 'compare' },
+      h('span', {}, 'Since ', h('b', {}, relativeTime(c.previousAt)), ':'),
+      h('span', {}, 'score ', delta(c.scoreDelta)),
+      c.detailed ? h('span', {}, h('b', {}, String(c.fixed.length)), ' fixed') : null,
+      c.detailed ? h('span', {}, h('b', {}, String(c.regressed.length)), ' new issues') : null));
+  }
+
+  frag.append(countsLine(r.scores.counts));
+  const issues = topIssues(r.checks, 6);
+  frag.append(h('h3', { class: 'section-title' }, 'Top issues', issues.length ? h('button', { class: 'link-btn', type: 'button', onclick: openReport }, 'Full report') : null));
+  if (issues.length) frag.append(h('div', {}, issues.map((ch) => checkItem(ch, { onHighlight, showCategory: true }))));
+  else frag.append(h('div', { class: 'empty' }, icon('check', 18), 'No issues found. Nice work.'));
+
+  frag.append(h('h3', { class: 'section-title' }, 'Page facts'), keyFacts(r));
+
+  const shown = r.stack.filter((t) => !t.implied && t.cat !== 'platform');
+  frag.append(h('h3', { class: 'section-title' }, 'Technologies',
+    h('button', { class: 'link-btn', type: 'button', onclick: () => selectTab('stack') }, `See all ${r.stack.length}`)));
+  frag.append(shown.length ? stackChips(r.stack) : h('p', { class: 'muted' }, 'No technologies detected.'));
+
+  if (!r.deep) {
+    const btn = h('button', { class: 'btn small', type: 'button' }, icon('zap', 13), h('span', {}, 'Run deep scan'));
+    btn.addEventListener('click', () => runDeep(btn));
+    frag.append(h('div', { class: 'overview-card' },
+      h('span', { class: 'oc-icon' }, icon('globe', 17)),
+      h('div', { class: 'oc-text' },
+        h('span', { class: 'oc-title' }, 'Deep scan (optional)'),
+        h('span', { class: 'oc-desc' }, 'Checks robots.txt, sitemap, security.txt and this site’s JS bundles for leaked keys. Contacts only this site.')),
+      btn));
+  } else {
+    frag.append(h('p', { class: 'hint' }, `Site files checked ${relativeTime(r.deep.ranAt)}.`));
+  }
+
+  frag.append(h('div', { class: 'actions-row' },
+    h('button', { class: 'btn', type: 'button', onclick: openReport }, icon('file', 14), 'Full report & export'),
+    h('button', { class: 'btn', type: 'button', onclick: async () => toast((await copyText(summaryText(r))) ? 'Summary copied' : 'Copy failed') }, icon('copy', 14), 'Copy summary')));
+  return frag;
+}
+
+function categoryPanel(r, id) {
+  const cat = CATEGORIES.find((c) => c.id === id);
+  const cs = r.scores.categories[id];
+  const checks = r.checks.filter((c) => c.cat === id);
+  const issueCount = checks.filter((c) => c.status === 'fail' || c.status === 'warn').length;
+  const frag = document.createDocumentFragment();
+
+  const listHost = h('div', {});
+  const renderList = () => clear(listHost).append(checkGroups(checks, { filter: state.filter, onHighlight }));
+  const seg = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Filter checks' });
+  for (const [value, label] of [['all', `All ${checks.length}`], ['issues', `Issues ${issueCount}`]]) {
+    seg.append(h('button', {
+      type: 'button', 'aria-pressed': String(state.filter === value),
+      onclick: (e) => {
+        state.filter = value;
+        for (const b of seg.children) b.setAttribute('aria-pressed', String(b === e.currentTarget));
+        renderList();
+      },
+    }, label));
+  }
+  frag.append(h('div', { class: 'panel-head' },
+    h('h2', {}, icon(CATEGORY_ICONS[id], 16), cat.label, h('span', { class: `score-chip tone-${tone(cs.score)}` }, cs.score ?? '–')),
+    seg));
+
+  if (id === 'performance') frag.append(h('div', { style: { marginBottom: '12px' } }, vitalsGrid(r.insights.vitals)));
+  if (id === 'seo') {
+    frag.append(h('div', { style: { display: 'grid', gap: '8px', marginBottom: '12px' } },
+      serpPreview(r.insights.seo, r.host), socialPreview(r.insights.seo, r.host)));
+  }
+
+  renderList();
+  frag.append(listHost);
+
+  if (id === 'security') {
+    const headers = r.insights.headers || [];
+    frag.append(section(`Response headers (${headers.length})`, headersTable(headers)));
+  }
+  if (id === 'performance') {
+    frag.append(section('Where the bytes go', resourceBreakdown(r.insights.resourceTypes || []), true));
+    frag.append(section(`Third parties (${(r.insights.thirdParties || []).length})`, thirdPartyTable((r.insights.thirdParties || []).slice(0, 12))));
+    frag.append(section('Largest requests', largestTable(r.insights.largest || [])));
+  }
+  if (id === 'seo') frag.append(section(`Heading outline (${r.insights.seo.outline.length})`, headingOutline(r.insights.seo.outline)));
+  if (id === 'privacy') {
+    const ids = tagIds(r.insights.tagIds || {});
+    if (ids) frag.append(section('Tracking IDs', ids, true));
+    frag.append(section(`Third-party domains (${(r.insights.thirdParties || []).length})`, thirdPartyTable(r.insights.thirdParties || [])));
+  }
+  if (id === 'accessibility') {
+    frag.append(h('p', { class: 'hint' }, 'Automated checks catch only part of accessibility problems. Also try the page with a keyboard and a screen reader.'));
+  }
+  return frag;
+}
+
+function stackPanel(r) {
+  const frag = document.createDocumentFragment();
+  const listHost = h('div', {});
+  const renderList = () => {
+    const q = state.stackQuery.trim().toLowerCase();
+    const list = q ? r.stack.filter((t) => `${t.name} ${t.category} ${t.version || ''}`.toLowerCase().includes(q)) : r.stack;
+    clear(listHost).append(stackList(list));
+  };
+  const input = h('input', { class: 'search', type: 'search', placeholder: `Filter ${r.stack.length} technologies`, 'aria-label': 'Filter technologies', value: state.stackQuery });
+  input.addEventListener('input', () => {
+    state.stackQuery = input.value;
+    renderList();
+  });
+  frag.append(h('div', { class: 'stack-tools' }, h('div', { class: 'search-wrap' }, icon('search', 14), input)));
+  renderList();
+  frag.append(listHost);
+  frag.append(section('Fonts & colors', designSection(r.insights.design, { onCopy: async (hex) => toast((await copyText(hex)) ? `Copied ${hex}` : 'Copy failed') }), false));
+  return frag;
+}
+
+function section(title, content, open = false) {
+  return h('details', { class: 'section', open: open || undefined },
+    h('summary', {}, title, h('span', { class: 'chev' }, icon('chevron', 14))),
+    h('div', { class: 'section-body' }, content));
+}
+
+// ---------------------------------------------------------------- history
+
+async function renderHistory() {
+  setPressed();
+  const list = await getHistory();
+  const body = h('div', { class: 'history-list' });
+  if (!list.length) body.append(h('div', { class: 'empty' }, icon('clock', 18), state.settings.history ? 'No scans yet.' : 'History is turned off in settings.'));
+  for (const e of list) {
+    let path = '';
+    try {
+      path = new URL(e.url).pathname;
+    } catch { /* ignore */ }
+    body.append(h('button', {
+      class: 'history-row', type: 'button', disabled: e.full ? undefined : true,
+      title: e.full ? 'Open report' : 'Only the summary of this older scan is kept',
+      onclick: () => chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?id=${encodeURIComponent(e.id)}`) }),
+    },
+    h('span', { class: `score-badge tone-${tone(e.score)}` }, String(e.score)),
+    h('span', { class: 'history-text' }, h('span', { class: 'history-host' }, e.host), h('span', { class: 'history-path' }, e.title || path || '/')),
+    h('span', { class: 'history-time' }, relativeTime(e.at))));
+  }
+  clear($view).append(
+    h('div', { class: 'subhead' },
+      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Back', onclick: () => toggleView('history') }, icon('back', 16)),
+      h('h2', {}, 'History'),
+      list.length ? h('button', {
+        class: 'btn small ghost', type: 'button',
+        onclick: async () => {
+          await clearHistory();
+          toast('History cleared');
+          renderHistory();
+        },
+      }, icon('trash', 13), 'Clear') : null),
+    body);
+}
+
+// ---------------------------------------------------------------- settings
+
+function renderSettings() {
+  setPressed();
+  const s = state.settings;
+  const toggle = (key, title, desc) => {
+    const input = h('input', { type: 'checkbox', role: 'switch', 'aria-label': title });
+    input.checked = !!s[key];
+    input.addEventListener('change', async () => {
+      state.settings = await saveSettings({ [key]: input.checked });
+      if (key === 'badge' && !input.checked && state.tab) chrome.action.setBadgeText({ tabId: state.tab.id, text: '' }).catch(() => {});
+    });
+    return h('label', { class: 'setting' },
+      h('span', { class: 'setting-text' }, h('span', { class: 'setting-title' }, title), h('span', { class: 'setting-desc' }, desc)),
+      h('span', { class: 'switch' }, input, h('span', { class: 'switch-track' })));
+  };
+
+  const theme = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Theme' });
+  for (const [value, label] of [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]) {
+    theme.append(h('button', {
+      type: 'button', 'aria-pressed': String(s.theme === value),
+      onclick: async (e) => {
+        state.settings = await saveSettings({ theme: value });
+        applyTheme(value);
+        for (const b of theme.children) b.setAttribute('aria-pressed', String(b === e.currentTarget));
+      },
+    }, label));
+  }
+
+  clear($view).append(
+    h('div', { class: 'subhead' },
+      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Back', onclick: () => toggleView('settings') }, icon('back', 16)),
+      h('h2', {}, 'Settings')),
+    h('div', { class: 'settings' },
+      h('div', { class: 'setting' }, h('span', { class: 'setting-text' }, h('span', { class: 'setting-title' }, 'Theme')), theme),
+      toggle('autoScan', 'Scan when opened', 'Start a scan as soon as you open Scanline.'),
+      toggle('badge', 'Score on toolbar icon', 'Show the last score for each tab on the Scanline icon.'),
+      toggle('history', 'Keep scan history', 'Store results locally so you can compare scans over time.'),
+      h('div', { class: 'setting' },
+        h('span', { class: 'setting-text' }, h('span', { class: 'setting-title' }, 'Keyboard shortcut'), h('span', { class: 'setting-desc' }, 'Default: Alt+Shift+S. Change it in Chrome’s shortcut settings.')),
+        h('button', { class: 'btn small', type: 'button', onclick: () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }) }, 'Edit'))),
+    h('p', { class: 'about' },
+      `Scanline ${EXT_VERSION}. All analysis runs inside your browser. Scan results and settings are stored only in this browser's local extension storage. The optional deep scan fetches robots.txt, sitemap, security.txt and scripts from the scanned site itself, and only when you click it.`));
+}
+
+init().catch((e) => {
+  console.error(e);
+  renderMessage({ title: 'Something went wrong', text: String(e.message || e), error: true });
+});
