@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildResult, mergeDeep } from '../lib/scan.js';
-import { scoreChecks, grade, topIssues } from '../lib/score.js';
-import { KB } from '../lib/kb.js';
-import { CATEGORIES } from '../lib/audit.js';
+import { buildResult, mergeDeep } from '../src/lib/scan.js';
+import { scoreChecks, grade, topIssues } from '../src/lib/score.js';
+import { KB } from '../src/lib/kb.js';
+import { CATEGORIES } from '../src/lib/audit.js';
 import { makeFacts, DOC } from './fixtures/facts.js';
 
 const probe = { globals: { 'jQuery.fn.jquery': '3.4.1', google_tag_manager: true }, special: {} };

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseCsp, analyzeCsp, parseHsts, parseSetCookie, auditCookies, isSessionCookieName, disclosureHeaders, headerIndex } from '../lib/headers.js';
+import { parseCsp, analyzeCsp, parseHsts, parseSetCookie, auditCookies, isSessionCookieName, disclosureHeaders, headerIndex } from '../src/lib/headers.js';
 
 test('parseCsp splits policies and directives', () => {
   const [p] = parseCsp("default-src 'self'; script-src 'self' https://cdn.example.com; object-src 'none'");
@@ -71,7 +71,7 @@ test('disclosureHeaders finds version leaks', () => {
 });
 
 test('isServerSessionCookie only matches server session names', async () => {
-  const { isServerSessionCookie } = await import('../lib/headers.js');
+  const { isServerSessionCookie } = await import('../src/lib/headers.js');
   for (const n of ['PHPSESSID', 'connect.sid', 'sessionid', '_myapp_session', 'laravel_session', 'auth_token', '.AspNetCore.Cookies']) assert.ok(isServerSessionCookie(n), n);
   for (const n of ['optimizelySession', 'enwikimwuser-sessionId', '_ga', '_hjSessionUser_1', 'theme']) assert.ok(!isServerSessionCookie(n), n);
 });

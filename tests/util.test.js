@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { compareVersions, inRange, cleanVersion, registrableDomain, shortUrl, formatBytes, scanBlockReason } from '../lib/util.js';
+import { compareVersions, inRange, cleanVersion, registrableDomain, shortUrl, formatBytes, scanBlockReason } from '../src/lib/util.js';
 
 test('compareVersions orders dotted versions', () => {
   assert.equal(compareVersions('3.4.1', '3.5.0'), -1);

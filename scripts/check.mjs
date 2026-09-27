@@ -4,14 +4,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const root = path.resolve(import.meta.dirname, '..');
+const repo = path.resolve(import.meta.dirname, '..');
+const root = path.join(repo, 'src'); // the extension itself
 const rel = (p) => path.join(root, p);
 const problems = [];
 
 const manifest = JSON.parse(fs.readFileSync(rel('manifest.json'), 'utf8'));
 if (manifest.manifest_version !== 3) problems.push('manifest_version must be 3');
 if ((manifest.description || '').length > 132) problems.push(`description is ${manifest.description.length} chars (max 132)`);
-const pkg = JSON.parse(fs.readFileSync(rel('package.json'), 'utf8'));
+const pkg = JSON.parse(fs.readFileSync(path.join(repo, 'package.json'), 'utf8'));
 if (pkg.version !== manifest.version) problems.push(`package.json version ${pkg.version} != manifest ${manifest.version}`);
 
 const referenced = [
@@ -20,17 +21,17 @@ const referenced = [
   ...Object.values(manifest.icons),
   ...Object.values(manifest.action.default_icon),
   'content/collector.js',
-  'report.html',
+  'pages/report/report.html',
 ];
 for (const f of referenced) if (!fs.existsSync(rel(f))) problems.push(`missing file: ${f}`);
 
-for (const html of ['popup.html', 'report.html']) {
+for (const html of ['pages/popup/popup.html', 'pages/report/report.html']) {
   const src = fs.readFileSync(rel(html), 'utf8');
-  for (const [, ref] of src.matchAll(/(?:src|href)="([^"#:]+)"/g)) if (!fs.existsSync(rel(ref))) problems.push(`${html} references missing ${ref}`);
+  for (const [, ref] of src.matchAll(/(?:src|href)="([^"#:]+)"/g)) if (!fs.existsSync(path.join(path.dirname(rel(html)), ref))) problems.push(`${html} references missing ${ref}`);
   if (/\son[a-z]+=/i.test(src)) problems.push(`${html} has inline event handlers (blocked by the extension CSP)`);
 }
 
-const jsFiles = ['background.js', 'popup.js', 'report.js', 'content/collector.js', ...fs.readdirSync(rel('lib')).map((f) => `lib/${f}`)];
+const jsFiles = ['background.js', 'pages/popup/popup.js', 'pages/report/report.js', 'content/collector.js', ...fs.readdirSync(rel('lib')).map((f) => `lib/${f}`)];
 for (const f of jsFiles) {
   try {
     execFileSync(process.execPath, ['--check', rel(f)], { stdio: 'pipe' });

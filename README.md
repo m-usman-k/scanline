@@ -41,7 +41,7 @@ Scanline has no backend, no analytics and no remote code.
 ## Install (development)
 
 1. Open `chrome://extensions` and enable **Developer mode**.
-2. Click **Load unpacked** and select this folder.
+2. Click **Load unpacked** and select the **`src`** folder of this repository.
 3. Pages that were already open before installing need a reload so their headers can be captured. The popup offers a **Reload page & rescan** button for this.
 
 To scan local `file://` pages, enable **Allow access to file URLs** on the extension's details page.
@@ -53,33 +53,43 @@ There is no build step and there are no runtime dependencies. Node 20+ is only n
 ```sh
 npm test          # unit tests (node:test) for detection, audit rules, scoring, CSP/cookie parsing, exports
 npm run check     # manifest sanity, referenced files, syntax, unused imports
-npm run package   # dist/scanline-<version>.zip with only the runtime files, ready for the Web Store
+npm run package   # dist/scanline-<version>.zip built from src/, ready for the Web Store
 ```
 
-### Architecture
+### Project layout
 
 ```
-manifest.json            MV3 manifest
-background.js            Service worker: records each tab's main-document response (headers, IP, redirects)
-content/collector.js     Injected on demand into the tab (isolated world): measures the page, returns plain JSON,
-                         and remembers flagged elements so they can be highlighted later
-lib/probe.js             Injected into the page's main world: reads globals and framework fingerprints
-lib/scan.js              Orchestrates a scan from the popup/report: inject → probe → headers → detect → audit → score
-lib/signatures.js        Technology signature database        lib/detect.js    signature matcher
-lib/audit.js             All checks (pure functions)           lib/score.js     weighted scoring
-lib/headers.js           CSP / HSTS / Set-Cookie analysis      lib/vulns.js     CVE and end-of-life data
-lib/secrets.js           Credential patterns                   lib/trackers.js  third-party domain map
-lib/deep.js              Optional site-file checks             lib/kb.js        "why it matters / how to fix" text
-lib/store.js, compare.js, export.js, ui.js, icons.js, util.js
-popup.*, report.*, ui.css  User interface (shared components in lib/ui.js and ui.css)
+scanline/
+├── src/                         The extension (load this folder unpacked; it is what ships)
+│   ├── manifest.json
+│   ├── background.js            Service worker: records each tab's main-document response (headers, IP, redirects)
+│   ├── content/collector.js     Injected on demand (isolated world): measures the page, returns plain JSON,
+│   │                            remembers flagged elements so they can be highlighted later
+│   ├── lib/                     Shared logic (ES modules)
+│   │   ├── scan.js              Orchestrates a scan: inject → probe → headers → detect → audit → score
+│   │   ├── probe.js             Injected into the page's main world: reads globals and framework fingerprints
+│   │   ├── signatures.js        Technology signature database   · detect.js   signature matcher
+│   │   ├── audit.js             All checks (pure functions)      · score.js    weighted scoring
+│   │   ├── headers.js           CSP / HSTS / Set-Cookie analysis · vulns.js    CVE and end-of-life data
+│   │   ├── secrets.js           Credential patterns              · trackers.js third-party domain map
+│   │   ├── deep.js              Optional site-file checks        · kb.js       "why / how to fix" text
+│   │   └── store.js, compare.js, export.js, ui.js, icons.js, util.js
+│   ├── pages/popup/             Toolbar popup (html, css, js)
+│   ├── pages/report/            Full report tab (html, css, js)
+│   ├── styles/ui.css            Design tokens (light/dark) and shared components
+│   └── icons/                   Toolbar and store icons (16, 32, 48, 128)
+├── assets/                      Brand sources: logo and icon SVG/PNG
+├── tests/                       Unit tests (node:test) and fixtures
+├── scripts/                     check.mjs (static checks), package.mjs (store ZIP)
+└── package.json                 Dev tooling only; the extension has no dependencies
 ```
 
-The collector only **measures**, and `lib/audit.js` **judges**. Thresholds and rules are pure functions, so they are covered by unit tests with recorded facts (`tests/fixtures/facts.js`).
+The collector only **measures**, and `src/lib/audit.js` **judges**. Thresholds and rules are pure functions, so they are covered by unit tests with recorded facts (`tests/fixtures/facts.js`).
 
 ### Adding a technology
 
-Add an entry to `TECHNOLOGIES` in `lib/signatures.js`. Rule types are documented at the top of the file: global paths (`probe`), URL patterns (`url`), `meta`, `dom` selectors, response `headers`, `cookies`, CSS variables, `host`, HTML `comment`s and `implies`. A capture group or a version-like global value becomes the detected version. Run `npm test` afterwards; the tests validate the database.
+Add an entry to `TECHNOLOGIES` in `src/lib/signatures.js`. Rule types are documented at the top of the file: global paths (`probe`), URL patterns (`url`), `meta`, `dom` selectors, response `headers`, `cookies`, CSS variables, `host`, HTML `comment`s and `implies`. A capture group or a version-like global value becomes the detected version. Run `npm test` afterwards; the tests validate the database.
 
 ### Adding a vulnerability
 
-Add an advisory to `ADVISORIES` (or `END_OF_LIFE`) in `lib/vulns.js` with the affected version ranges. The vulnerability data is a curated offline snapshot, not an exhaustive feed.
+Add an advisory to `ADVISORIES` (or `END_OF_LIFE`) in `src/lib/vulns.js` with the affected version ranges. The vulnerability data is a curated offline snapshot, not an exhaustive feed.

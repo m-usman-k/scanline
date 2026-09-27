@@ -2,14 +2,14 @@ import {
   h, clear, icon, ring, bar, delta, tone, checkGroups, checkItem, countsLine, stackList, vitalsGrid, keyFacts,
   resourceBreakdown, thirdPartyTable, largestTable, headersTable, dataTable, serpPreview, socialPreview,
   headingOutline, designSection, tagIds, copyText, toast, download, applyTheme, catLabel, CATEGORY_ICONS,
-} from './lib/ui.js';
-import { logo } from './lib/icons.js';
-import { CATEGORIES } from './lib/audit.js';
-import { topIssues } from './lib/score.js';
-import { getScan, getSettings, historyFor, previousScan } from './lib/store.js';
-import { compareResults } from './lib/compare.js';
-import { toJson, toMarkdown, summaryText, fileBase } from './lib/export.js';
-import { formatMs, relativeTime, plural } from './lib/util.js';
+} from '../../lib/ui.js';
+import { logo } from '../../lib/icons.js';
+import { CATEGORIES } from '../../lib/audit.js';
+import { topIssues } from '../../lib/score.js';
+import { getScan, getSettings, historyFor, previousScan } from '../../lib/store.js';
+import { compareResults } from '../../lib/compare.js';
+import { toJson, toMarkdown, summaryText, fileBase } from '../../lib/export.js';
+import { formatMs, relativeTime, plural } from '../../lib/util.js';
 
 const $main = document.getElementById('main');
 const $nav = document.getElementById('nav');
@@ -56,7 +56,7 @@ function renderActions(result) {
 }
 
 async function exportHtml(result) {
-  const css = (await Promise.all(['ui.css', 'report.css'].map((f) => fetch(chrome.runtime.getURL(f)).then((r) => r.text())))).join('\n');
+  const css = (await Promise.all(['styles/ui.css', 'pages/report/report.css'].map((f) => fetch(chrome.runtime.getURL(f)).then((r) => r.text())))).join('\n');
   const clone = $main.cloneNode(true);
   clone.querySelectorAll('details').forEach((d) => d.setAttribute('open', ''));
   clone.querySelectorAll('button, .chart-tooltip, .crosshair').forEach((el) => el.remove());

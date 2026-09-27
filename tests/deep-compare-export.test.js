@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseRobots, isAllowed, blockedAiCrawlers } from '../lib/deep.js';
-import { compareResults } from '../lib/compare.js';
-import { toMarkdown, summaryText, fileBase, toJson } from '../lib/export.js';
-import { buildResult } from '../lib/scan.js';
+import { parseRobots, isAllowed, blockedAiCrawlers } from '../src/lib/deep.js';
+import { compareResults } from '../src/lib/compare.js';
+import { toMarkdown, summaryText, fileBase, toJson } from '../src/lib/export.js';
+import { buildResult } from '../src/lib/scan.js';
 import { makeFacts, DOC } from './fixtures/facts.js';
 
 const ROBOTS = `

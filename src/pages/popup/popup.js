@@ -2,16 +2,16 @@ import {
   h, clear, icon, ring, bar, delta, tone, checkGroups, checkItem, countsLine, stackList, stackChips,
   vitalsGrid, keyFacts, resourceBreakdown, thirdPartyTable, largestTable, headersTable, serpPreview,
   socialPreview, headingOutline, designSection, tagIds, copyText, toast, applyTheme, CATEGORY_ICONS,
-} from './lib/ui.js';
-import { logo } from './lib/icons.js';
-import { CATEGORIES } from './lib/audit.js';
-import { topIssues } from './lib/score.js';
-import { scanTab, mergeDeep, highlightInTab, ScanError } from './lib/scan.js';
-import { deepScan } from './lib/deep.js';
-import { getSettings, saveSettings, saveScan, updateScan, previousScan, getHistory, clearHistory } from './lib/store.js';
-import { compareResults } from './lib/compare.js';
-import { summaryText } from './lib/export.js';
-import { EXT_VERSION, relativeTime, scanBlockReason, shortUrl, plural } from './lib/util.js';
+} from '../../lib/ui.js';
+import { logo } from '../../lib/icons.js';
+import { CATEGORIES } from '../../lib/audit.js';
+import { topIssues } from '../../lib/score.js';
+import { scanTab, mergeDeep, highlightInTab, ScanError } from '../../lib/scan.js';
+import { deepScan } from '../../lib/deep.js';
+import { getSettings, saveSettings, saveScan, updateScan, previousScan, getHistory, clearHistory } from '../../lib/store.js';
+import { compareResults } from '../../lib/compare.js';
+import { summaryText } from '../../lib/export.js';
+import { EXT_VERSION, relativeTime, scanBlockReason, shortUrl, plural } from '../../lib/util.js';
 
 const TABS = [
   { id: 'overview', label: 'Overview' },
@@ -156,7 +156,7 @@ async function onHighlight(key, index) {
 
 function openReport() {
   if (!state.result) return;
-  chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?id=${encodeURIComponent(state.result.id)}`) });
+  chrome.tabs.create({ url: chrome.runtime.getURL(`pages/report/report.html?id=${encodeURIComponent(state.result.id)}`) });
 }
 
 async function runDeep(btn) {
@@ -467,7 +467,7 @@ async function renderHistory() {
     body.append(h('button', {
       class: 'history-row', type: 'button', disabled: e.full ? undefined : true,
       title: e.full ? 'Open report' : 'Only the summary of this older scan is kept',
-      onclick: () => chrome.tabs.create({ url: chrome.runtime.getURL(`report.html?id=${encodeURIComponent(e.id)}`) }),
+      onclick: () => chrome.tabs.create({ url: chrome.runtime.getURL(`pages/report/report.html?id=${encodeURIComponent(e.id)}`) }),
     },
     h('span', { class: `score-badge tone-${tone(e.score)}` }, String(e.score)),
     h('span', { class: 'history-text' }, h('span', { class: 'history-host' }, e.host), h('span', { class: 'history-path' }, e.title || path || '/')),

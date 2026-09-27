@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { detectStack, probePaths, domSelectors, cssVarNames } from '../lib/detect.js';
-import { TECHNOLOGIES, CATEGORIES } from '../lib/signatures.js';
+import { detectStack, probePaths, domSelectors, cssVarNames } from '../src/lib/detect.js';
+import { TECHNOLOGIES, CATEGORIES } from '../src/lib/signatures.js';
 
 const byName = (stack, name) => stack.find((t) => t.name === name);
 

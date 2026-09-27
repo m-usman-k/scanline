@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { advisoriesFor, endOfLifeFor, assessStack } from '../lib/vulns.js';
-import { SECRET_PATTERNS, SERIALIZED_SECRET_PATTERNS, scanTextForSecrets, classifyFinding, maskSecret, decodeJwtClaims } from '../lib/secrets.js';
+import { advisoriesFor, endOfLifeFor, assessStack } from '../src/lib/vulns.js';
+import { SECRET_PATTERNS, SERIALIZED_SECRET_PATTERNS, scanTextForSecrets, classifyFinding, maskSecret, decodeJwtClaims } from '../src/lib/secrets.js';
 
 test('jQuery advisories depend on version', () => {
   const ids = (v) => advisoriesFor('jQuery', v).flatMap((a) => a.ids);

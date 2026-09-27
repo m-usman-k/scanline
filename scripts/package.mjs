@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import zlib from 'node:zlib';
 
-const root = path.resolve(import.meta.dirname, '..');
+const repo = path.resolve(import.meta.dirname, '..');
+const root = path.join(repo, 'src'); // everything in src/ ships
 const manifest = JSON.parse(fs.readFileSync(path.join(root, 'manifest.json'), 'utf8'));
-const INCLUDE = ['manifest.json', 'background.js', 'popup.html', 'popup.css', 'popup.js', 'report.html', 'report.css', 'report.js', 'ui.css', 'lib', 'content', 'icons'];
+const INCLUDE = fs.readdirSync(root).sort();
 
 function walk(p) {
   const abs = path.join(root, p);
@@ -80,8 +81,8 @@ end.writeUInt16LE(files.length, 10);
 end.writeUInt32LE(cd.length, 12);
 end.writeUInt32LE(offset, 16);
 
-const outDir = path.join(root, 'dist');
+const outDir = path.join(repo, 'dist');
 fs.mkdirSync(outDir, { recursive: true });
 const out = path.join(outDir, `scanline-${manifest.version}.zip`);
 fs.writeFileSync(out, Buffer.concat([...locals, cd, end]));
-console.log(`✓ ${path.relative(root, out)} (${files.length} files, ${(fs.statSync(out).size / 1024).toFixed(1)} KB)`);
+console.log(`✓ ${path.relative(repo, out)} (${files.length} files, ${(fs.statSync(out).size / 1024).toFixed(1)} KB)`);
