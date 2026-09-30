@@ -20,7 +20,7 @@ It also includes:
 - **Highlight on page**: outlines the images without alt text, low-contrast text, layout-shifting elements and so on, directly on the page.
 - **Full report** in a tab, with export to Markdown, JSON, standalone HTML and Print/PDF.
 - **History and comparison**: see what improved or regressed since the last scan of the same URL.
-- **Toolbar badge** with the score, a light and dark theme, and the `Alt+Shift+S` shortcut.
+- **Toolbar badge** with the score, and the `Alt+Shift+S` shortcut.
 
 ## Privacy: what touches the network
 

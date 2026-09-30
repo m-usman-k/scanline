@@ -19,7 +19,7 @@ export function toJson(result) {
 
 export function summaryText(result) {
   const s = result.scores;
-  const cats = CATEGORIES.map((c) => `${c.label} ${s.categories[c.id].score ?? '–'}`).join(' · ');
+  const cats = CATEGORIES.map((c) => `${c.label} ${s.categories[c.id].score ?? '-'}`).join(' · ');
   const issues = topIssues(result.checks, 5).map((c) => `- [${STATUS_TEXT[c.status]}] ${c.title}: ${c.value}`);
   const stack = result.stack.filter((t) => !t.implied).slice(0, 12).map((t) => (t.version ? `${t.name} ${t.version}` : t.name));
   return [
@@ -46,7 +46,7 @@ export function toMarkdown(result) {
   lines.push('|---|---:|---:|---:|---:|');
   for (const c of CATEGORIES) {
     const x = s.categories[c.id];
-    lines.push(`| ${c.label} | ${x.score ?? '–'} | ${x.counts.fail} | ${x.counts.warn} | ${x.counts.pass} |`);
+    lines.push(`| ${c.label} | ${x.score ?? '-'} | ${x.counts.fail} | ${x.counts.warn} | ${x.counts.pass} |`);
   }
   lines.push('');
   lines.push('## Core Web Vitals (this page load)');
@@ -78,7 +78,7 @@ export function toMarkdown(result) {
   for (const cat of CATEGORIES) {
     const list = result.checks.filter((c) => c.cat === cat.id);
     if (!list.length) continue;
-    lines.push(`## ${cat.label} (${s.categories[cat.id].score ?? '–'})`);
+    lines.push(`## ${cat.label} (${s.categories[cat.id].score ?? '-'})`);
     lines.push('');
     lines.push('| Check | Status | Result |');
     lines.push('|---|---|---|');

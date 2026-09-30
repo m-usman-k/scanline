@@ -1,13 +1,10 @@
 // Shared rendering for the popup and the full report. Everything is built with DOM APIs and
 // textContent, so page-controlled strings (titles, headers, URLs) can never inject markup.
 
-import { icon } from './icons.js';
 import { explain } from './kb.js';
 import { CATEGORIES } from './audit.js';
 import { CATEGORY_NAMES } from './trackers.js';
 import { formatBytes, formatMs, shortUrl, truncate, plural } from './util.js';
-
-export { icon };
 
 // ---------------------------------------------------------------- DOM helper
 
@@ -52,10 +49,10 @@ export function clear(el) {
 // ---------------------------------------------------------------- tones
 
 export const STATUS = {
-  pass: { label: 'Pass', icon: 'check' },
-  warn: { label: 'Warn', icon: 'alert' },
-  fail: { label: 'Fail', icon: 'x' },
-  info: { label: 'Info', icon: 'info' },
+  pass: { label: 'Pass' },
+  warn: { label: 'Warn' },
+  fail: { label: 'Fail' },
+  info: { label: 'Info' },
 };
 
 export function tone(score) {
@@ -65,48 +62,20 @@ export function tone(score) {
   return 'bad';
 }
 
-export const CATEGORY_ICONS = { security: 'shield', performance: 'gauge', seo: 'search', accessibility: 'person', privacy: 'eyeOff' };
 export const catLabel = (id) => (CATEGORIES.find((c) => c.id === id) || {}).label || id;
 
-// ---------------------------------------------------------------- score ring
+// ---------------------------------------------------------------- score
 
-export function ring(score, { size = 88, stroke = 8, grade = '', animate = true } = {}) {
-  const NS = 'http://www.w3.org/2000/svg';
-  const r = (size - stroke) / 2;
-  const circ = 2 * Math.PI * r;
-  const svg = document.createElementNS(NS, 'svg');
-  svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
-  svg.setAttribute('width', String(size));
-  svg.setAttribute('height', String(size));
-  svg.setAttribute('aria-hidden', 'true');
-  const mk = (cls) => {
-    const c = document.createElementNS(NS, 'circle');
-    c.setAttribute('cx', String(size / 2));
-    c.setAttribute('cy', String(size / 2));
-    c.setAttribute('r', String(r));
-    c.setAttribute('fill', 'none');
-    c.setAttribute('stroke-width', String(stroke));
-    c.setAttribute('class', cls);
-    return c;
-  };
-  const track = mk('ring-track');
-  const bar = mk('ring-bar');
-  bar.setAttribute('stroke-linecap', 'round');
-  bar.setAttribute('transform', `rotate(-90 ${size / 2} ${size / 2})`);
-  bar.setAttribute('stroke-dasharray', String(circ));
-  const target = circ - (Math.max(0, Math.min(100, score || 0)) / 100) * circ;
-  bar.setAttribute('stroke-dashoffset', String(animate ? circ : target));
-  if (animate) requestAnimationFrame(() => requestAnimationFrame(() => bar.setAttribute('stroke-dashoffset', String(target))));
-  svg.append(track, bar);
-
-  const num = h('span', { class: 'ring-num' }, String(score ?? '–'));
+/** The score as a plain figure: big number, then "/100 · grade B". */
+export function scoreFigure(score, { grade = '', animate = true } = {}) {
+  const num = h('span', { class: 'score-num' }, String(score ?? '-'));
   if (animate && Number.isFinite(score)) countUp(num, score);
-  return h('div', { class: `ring tone-${tone(score)}`, style: { width: `${size}px`, height: `${size}px` }, role: 'img', 'aria-label': `Score ${score} out of 100${grade ? `, grade ${grade}` : ''}` },
-    svg,
-    h('div', { class: 'ring-center' }, num, grade ? h('span', { class: 'ring-grade' }, grade) : null));
+  return h('div', { class: `score tone-${tone(score)}`, role: 'img', 'aria-label': `Score ${score} out of 100${grade ? `, grade ${grade}` : ''}` },
+    num,
+    h('span', { class: 'score-of' }, '/100', grade ? [' · grade ', h('span', { class: 'score-grade' }, grade)] : null));
 }
 
-function countUp(el, to, duration = 700) {
+function countUp(el, to, duration = 600) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const start = performance.now();
   const step = (now) => {
@@ -123,7 +92,7 @@ export function bar(score) {
 
 export function delta(n) {
   if (!n) return h('span', { class: 'delta zero' }, '±0');
-  return h('span', { class: `delta ${n > 0 ? 'up' : 'down'}` }, icon(n > 0 ? 'arrowUp' : 'arrowDown', 12), String(Math.abs(n)));
+  return h('span', { class: `delta ${n > 0 ? 'up' : 'down'}` }, `${n > 0 ? '+' : '−'}${Math.abs(n)}`);
 }
 
 // ---------------------------------------------------------------- checks
@@ -135,12 +104,10 @@ export function checkItem(c, { onHighlight, open = false, showCategory = false }
   const st = STATUS[c.status] || STATUS.info;
   const el = h('details', { class: `check s-${c.status}`, open: open || undefined, dataset: { id: c.id } });
   el.append(h('summary', { class: 'check-row' },
-    h('span', { class: `status-icon s-${c.status}` }, icon(st.icon, 13)),
+    h('span', { class: `st s-${c.status}` }, st.label),
     h('span', { class: 'check-text' },
       h('span', { class: 'check-title' }, c.title, showCategory ? h('span', { class: 'check-cat' }, catLabel(c.cat)) : null),
-      h('span', { class: 'check-value' }, c.value)),
-    h('span', { class: `pill s-${c.status}` }, st.label),
-    h('span', { class: 'chev' }, icon('chevron', 14))));
+      h('span', { class: 'check-value' }, c.value))));
 
   const body = h('div', { class: 'check-body' });
   if (c.details && c.details.length) body.append(h('ul', { class: 'detail-list' }, c.details.map((d) => h('li', {}, rich(d)))));
@@ -153,13 +120,13 @@ export function checkItem(c, { onHighlight, open = false, showCategory = false }
   }
   if (onHighlight && c.highlight) {
     body.append(h('div', { class: 'check-actions' },
-      h('button', { class: 'btn small', type: 'button', onclick: () => onHighlight(c.highlight, null) }, icon('target', 14), 'Highlight on page')));
+      h('button', { class: 'btn small', type: 'button', onclick: () => onHighlight(c.highlight, null) }, 'Highlight on page')));
   }
   if (kb) {
     body.append(h('div', { class: 'kb' },
       h('p', {}, h('strong', {}, 'Why it matters. '), rich(kb.why)),
       h('p', {}, h('strong', {}, 'How to fix. '), rich(kb.fix)),
-      kb.learn ? h('a', { class: 'learn', href: kb.learn, target: '_blank', rel: 'noopener noreferrer' }, 'Learn more', icon('external', 12)) : null));
+      kb.learn ? h('a', { class: 'learn', href: kb.learn, target: '_blank', rel: 'noopener noreferrer' }, 'Learn more') : null));
   }
   if (!body.childNodes.length) body.append(h('p', { class: 'muted' }, 'No further details.'));
   el.append(body);
@@ -170,7 +137,7 @@ export function checkItem(c, { onHighlight, open = false, showCategory = false }
 export function checkGroups(checks, { filter = 'all', onHighlight, openIssues = false } = {}) {
   const list = checks.filter((c) => filter === 'all' || c.status === 'fail' || c.status === 'warn');
   if (!list.length) {
-    return h('div', { class: 'empty' }, icon('check', 20), filter === 'all' ? 'No checks in this category.' : 'No issues in this category.');
+    return h('div', { class: 'empty' }, filter === 'all' ? 'No checks in this category.' : 'No issues in this category.');
   }
   const groups = new Map();
   for (const c of list) {
@@ -197,7 +164,7 @@ export function countsLine(counts) {
 // ---------------------------------------------------------------- stack
 
 export function stackList(stack, { open = false } = {}) {
-  if (!stack.length) return h('div', { class: 'empty' }, icon('layers', 20), 'No technologies detected.');
+  if (!stack.length) return h('div', { class: 'empty' }, 'No technologies detected.');
   const byCat = new Map();
   for (const t of stack) {
     if (!byCat.has(t.category)) byCat.set(t.category, []);
@@ -216,17 +183,16 @@ function techItem(t, open) {
   const worst = (t.vulns || []).some((v) => v.severity === 'high') ? 'fail' : (t.vulns || []).length ? 'warn' : null;
   const badges = [
     t.version ? h('span', { class: 'tag' }, t.version) : null,
-    worst ? h('span', { class: `pill s-${worst}` }, plural(t.vulns.length, 'advisory', 'advisories')) : null,
-    t.eol ? h('span', { class: 'pill s-warn' }, 'End-of-life') : null,
-    t.deprecated ? h('span', { class: 'pill s-warn' }, 'Discontinued') : null,
+    worst ? h('span', { class: `tag ${worst === 'fail' ? 'bad' : 'warn'}` }, plural(t.vulns.length, 'advisory', 'advisories')) : null,
+    t.eol ? h('span', { class: 'tag warn' }, 'end-of-life') : null,
+    t.deprecated ? h('span', { class: 'tag warn' }, 'discontinued') : null,
     t.tracker && !t.friendly ? h('span', { class: 'tag subtle' }, CATEGORY_NAMES[t.tracker] || t.tracker) : null,
-    t.friendly ? h('span', { class: 'tag subtle' }, 'Privacy-friendly') : null,
+    t.friendly ? h('span', { class: 'tag subtle' }, 'privacy-friendly') : null,
   ];
   return h('details', { class: `tech${t.implied ? ' implied' : ''}`, open: open || undefined },
     h('summary', { class: 'tech-row' },
       h('span', { class: 'tech-name' }, t.name),
-      h('span', { class: 'tech-badges' }, badges),
-      h('span', { class: 'chev' }, icon('chevron', 14))),
+      h('span', { class: 'tech-badges' }, badges)),
     h('div', { class: 'tech-body' },
       h('div', { class: 'mini-label' }, 'Detected by'),
       h('ul', { class: 'detail-list' }, t.evidence.map((e) => h('li', {}, e))),
@@ -258,8 +224,7 @@ export function vitalsGrid(vitals) {
     const t = v == null ? 'none' : v <= good ? 'good' : v <= poor ? 'ok' : 'bad';
     return h('div', { class: `vital tone-${t}`, title: long },
       h('span', { class: 'vital-name' }, short),
-      h('span', { class: 'vital-value' }, v == null ? '–' : fmt(v)),
-      h('span', { class: 'vital-bar' }));
+      h('span', { class: 'vital-value' }, v == null ? '-' : fmt(v)));
   }));
 }
 
@@ -267,15 +232,15 @@ export function keyFacts(result) {
   const i = result.insights || {};
   const p = i.page || {};
   const t = i.totals || {};
-  const proto = p.protocol === 'h3' ? 'HTTP/3' : p.protocol === 'h2' ? 'HTTP/2' : p.protocol ? p.protocol.toUpperCase() : '–';
+  const proto = p.protocol === 'h3' ? 'HTTP/3' : p.protocol === 'h2' ? 'HTTP/2' : p.protocol ? p.protocol.toUpperCase() : '-';
   const facts = [
-    ['Server', p.server || '–'],
-    ['IP address', p.ip || '–'],
+    ['Server', p.server || '-'],
+    ['IP address', p.ip || '-'],
     ['Protocol', proto],
-    ['Status', p.status ? String(p.status) : '–'],
+    ['Status', p.status ? String(p.status) : '-'],
     ['Page weight', formatBytes(t.bytes || 0)],
     ['Requests', String(t.requests || 0)],
-    ['DOM elements', t.domElements != null ? t.domElements.toLocaleString('en-US') : '–'],
+    ['DOM elements', t.domElements != null ? t.domElements.toLocaleString('en-US') : '-'],
     ['Third parties', String((i.thirdParties || []).length)],
   ];
   return h('dl', { class: 'facts' }, facts.map(([k, v]) => h('div', { class: 'fact' }, h('dt', {}, k), h('dd', { title: v }, v))));
@@ -298,8 +263,8 @@ export function dataTable(columns, rows, { empty = 'Nothing to show.' } = {}) {
 export function thirdPartyTable(list) {
   return dataTable([
     { label: 'Domain', render: (d) => d.domain },
-    { label: 'Owner', render: (d) => d.entity || '–' },
-    { label: 'Type', render: (d) => (d.category ? CATEGORY_NAMES[d.category] || d.category : '–') },
+    { label: 'Owner', render: (d) => d.entity || '-' },
+    { label: 'Type', render: (d) => (d.category ? CATEGORY_NAMES[d.category] || d.category : '-') },
     { label: 'Req.', num: true, render: (d) => String(d.requests) },
     { label: 'Size', num: true, render: (d) => formatBytes(d.bytes) },
   ], list, { empty: 'No third-party requests.' });
@@ -326,7 +291,7 @@ export function serpPreview(seo, host) {
     const u = new URL(seo.url);
     crumbs = [u.hostname, ...u.pathname.split('/').filter(Boolean).slice(0, 3)].join(' › ');
   } catch { /* ignore */ }
-  return h('div', { class: 'serp' },
+  return h('div', { class: 'box serp' },
     h('div', { class: 'serp-crumbs' }, crumbs),
     h('div', { class: 'serp-title' }, truncate(seo.title || 'Untitled page', 62)),
     h('div', { class: 'serp-desc' }, seo.description ? truncate(seo.description, 158) : 'No meta description. Search engines will pick text from the page.'));
@@ -435,9 +400,4 @@ export function download(filename, content, type) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-
-export function applyTheme(theme) {
-  if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
-  else delete document.documentElement.dataset.theme;
 }

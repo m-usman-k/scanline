@@ -159,7 +159,7 @@
     } else if (str === 'transparent') {
       res = { r: 0, g: 0, b: 0, a: 0 };
     } else {
-      // Modern colour spaces (oklch, lab, color()) — let the canvas convert them to sRGB.
+      // Modern colour spaces (oklch, lab, color()): let the canvas convert them to sRGB.
       try {
         if (!colorCtx) {
           const c = document.createElement('canvas');
@@ -598,7 +598,7 @@
         skipped,
         failing: flag('a11y.contrast', failing, (el) => {
           const r = ratios.get(el);
-          return `${describe(el)} — ${r.ratio.toFixed(2)}:1 (${r.fg} on ${r.bg}, needs ${r.needed}:1)`;
+          return `${describe(el)} · ${r.ratio.toFixed(2)}:1 (${r.fg} on ${r.bg}, needs ${r.needed}:1)`;
         }),
         worst: failing.length ? Math.min(...failing.map((el) => ratios.get(el).ratio)) : null,
       },
@@ -985,7 +985,7 @@
         lazy: lazyCount,
         noDims: flag('perf.imgDims', noDims),
         offscreenEager: flag('perf.lazy', offscreenEager),
-        oversized: flag('perf.oversized', oversized, (el) => `${describe(el)} — ${oversizeInfo.get(el)}`),
+        oversized: flag('perf.oversized', oversized, (el) => `${describe(el)} · ${oversizeInfo.get(el)}`),
         legacy: flag('perf.formats', legacy),
         legacyUrls: legacy.slice(0, 60).map((img) => img.currentSrc || img.src),
       },
@@ -1331,13 +1331,14 @@
     const root = host.attachShadow({ mode: 'closed' });
     const style = document.createElement('style');
     style.textContent = [
-      '.box{position:absolute;border:2px solid #ff4d6d;background:rgba(255,77,109,.12);border-radius:4px;box-shadow:0 0 0 1px #fff,0 2px 12px rgba(0,0,0,.35);box-sizing:border-box;animation:pulse 1.2s ease-in-out 2}',
-      '.num{position:absolute;top:-20px;left:-2px;background:#ff4d6d;color:#fff;font:600 11px/18px system-ui,sans-serif;padding:0 6px;border-radius:4px;white-space:nowrap}',
-      '.bar{position:fixed;top:12px;right:12px;display:flex;gap:10px;align-items:center;background:#1e1d22;color:#ededf2;font:500 13px/1.3 system-ui,sans-serif;padding:8px 8px 8px 14px;border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.35);pointer-events:auto}',
-      '.bar b{color:#8fa6ff}',
-      '.bar button{all:unset;cursor:pointer;background:#6b8aff;color:#14131a;border-radius:6px;padding:4px 10px;font-weight:600}',
-      '.bar button:focus-visible{outline:2px solid #fff;outline-offset:2px}',
-      '@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,77,109,.35)}}',
+      '.box{position:absolute;border:2px solid #ff6b6b;background:rgba(255,107,107,.1);border-radius:3px;box-shadow:0 0 0 1px rgba(255,255,255,.85),0 2px 10px rgba(0,0,0,.3);box-sizing:border-box;animation:pulse 1.2s ease-in-out 2}',
+      '.num{position:absolute;top:-20px;left:-2px;background:#ff6b6b;color:#1e1d22;font:600 11px/18px "JetBrains Mono",Consolas,ui-monospace,monospace;padding:0 6px;border-radius:3px;white-space:nowrap}',
+      '.bar{position:fixed;top:12px;right:12px;display:flex;gap:12px;align-items:center;background:#1e1d22;color:#d6d6dc;border:1px solid rgba(214,214,228,.24);font:500 13px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;padding:7px 7px 7px 14px;border-radius:12px;border-color:#3a3944;box-shadow:0 10px 28px rgba(0,0,0,.35);pointer-events:auto}',
+      '.bar b{color:#6b8aff;font-weight:600}',
+      '.bar button{all:unset;cursor:pointer;background:#6b8aff;color:#1e1d22;border-radius:8px;padding:4px 10px;font:inherit;font-weight:600}',
+      '.bar button:hover{opacity:.88}',
+      '.bar button:focus-visible{outline:1px solid #6b8aff;outline-offset:2px}',
+      '@keyframes pulse{50%{box-shadow:0 0 0 6px rgba(255,107,107,.3)}}',
     ].join('');
     root.append(style);
 

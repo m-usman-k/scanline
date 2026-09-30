@@ -8,17 +8,17 @@
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <header class="topbar">
+  <header class="top">
     <div class="brand" id="brand"><span>Scanline</span></div>
-    <div class="top-actions">
-      <button class="icon-btn" id="btnHistory" type="button" title="Scan history" aria-label="Scan history"></button>
-      <button class="icon-btn" id="btnReport" type="button" title="Open full report" aria-label="Open full report" disabled></button>
-      <button class="icon-btn" id="btnSettings" type="button" title="Settings" aria-label="Settings"></button>
+    <nav class="top-actions">
+      <button class="nav-link" id="btnHistory" type="button" title="Scan history">History</button>
+      <button class="nav-link" id="btnReport" type="button" title="Open full report" disabled>Report</button>
+      <button class="nav-link" id="btnSettings" type="button" title="Settings">Settings</button>
       <button class="btn primary" id="btnScan" type="button">Scan</button>
-    </div>
+    </nav>
   </header>
   <main id="view" tabindex="-1" aria-live="polite"></main>
-  <footer class="foot" id="foot">Runs 100% locally. Nothing leaves your browser.</footer>
+  <footer class="foot" id="foot">Runs locally. Nothing leaves your browser.</footer>
   <script type="module" src="popup.js"></script>
 </body>
 </html>

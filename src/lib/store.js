@@ -2,7 +2,7 @@
 
 import { stripHash } from './util.js';
 
-export const DEFAULT_SETTINGS = { theme: 'system', autoScan: true, badge: true, history: true };
+export const DEFAULT_SETTINGS = { autoScan: true, badge: true, history: true };
 const HISTORY_KEY = 'history';
 const MAX_HISTORY = 150;
 const MAX_FULL_SCANS = 20;

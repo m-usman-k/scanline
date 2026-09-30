@@ -5,7 +5,7 @@ import { CATEGORIES } from './audit.js';
 export const STATUS_VALUE = { pass: 1, warn: 0.5, fail: 0 };
 
 export function grade(score) {
-  if (score == null) return '–';
+  if (score == null) return '-';
   if (score >= 90) return 'A';
   if (score >= 80) return 'B';
   if (score >= 70) return 'C';

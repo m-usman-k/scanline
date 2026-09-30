@@ -1,7 +1,7 @@
 import {
-  h, clear, icon, ring, bar, delta, tone, checkGroups, checkItem, countsLine, stackList, stackChips,
+  h, clear, scoreFigure, bar, delta, tone, checkGroups, checkItem, countsLine, stackList, stackChips,
   vitalsGrid, keyFacts, resourceBreakdown, thirdPartyTable, largestTable, headersTable, serpPreview,
-  socialPreview, headingOutline, designSection, tagIds, copyText, toast, applyTheme, CATEGORY_ICONS,
+  socialPreview, headingOutline, designSection, tagIds, copyText, toast,
 } from '../../lib/ui.js';
 import { logo } from '../../lib/icons.js';
 import { CATEGORIES } from '../../lib/audit.js';
@@ -42,13 +42,8 @@ const $report = document.getElementById('btnReport');
 
 async function init() {
   state.settings = await getSettings();
-  applyTheme(state.settings.theme);
 
-  document.getElementById('brand').prepend(logo(22));
-  document.getElementById('btnHistory').append(icon('clock', 17));
-  $report.append(icon('file', 17));
-  document.getElementById('btnSettings').append(icon('sliders', 17));
-  document.getElementById('foot').prepend(icon('lock', 12));
+  document.getElementById('brand').prepend(logo(26));
 
   $scan.addEventListener('click', () => runScan());
   $report.addEventListener('click', openReport);
@@ -136,7 +131,7 @@ function reloadTab(tabId) {
 function setBadge(result) {
   if (!state.settings.badge) return;
   const s = result.scores.overall;
-  const color = s >= 90 ? '#067a55' : s >= 60 ? '#9a6200' : '#c9372b';
+  const color = s >= 90 ? '#23804b' : s >= 60 ? '#a46f00' : '#cc3a3a';
   const tabId = state.tab.id;
   chrome.action.setBadgeText({ tabId, text: String(s) }).catch(() => {});
   chrome.action.setBadgeBackgroundColor({ tabId, color }).catch(() => {});
@@ -198,34 +193,38 @@ function renderLoading(steps, current) {
   setPressed();
   const idx = Math.max(0, steps.indexOf(current));
   clear($view).append(h('div', { class: 'state' },
-    h('div', { class: 'spinner', role: 'progressbar', 'aria-label': 'Scanning' }),
+    h('span', { class: 'state-label' }, 'In progress'),
     h('h2', {}, 'Scanning page'),
-    h('ol', { class: 'steps' }, steps.map((s, i) => h('li', { class: i < idx ? 'done' : i === idx ? 'active' : '' }, icon(i < idx ? 'check' : 'chevron', 12), s))),
+    h('div', { class: 'progress', role: 'progressbar', 'aria-label': 'Scanning' }),
+    h('ol', { class: 'steps' }, steps.map((s, i) => h('li', { class: i < idx ? 'done' : i === idx ? 'active' : '' },
+      h('em', {}, String(i + 1).padStart(2, '0')),
+      h('span', { class: 'step-text' }, s),
+      h('span', { class: 'step-state' }, i < idx ? 'Done' : i === idx ? 'Running' : '')))),
     h('p', { class: 'muted small' }, 'Everything is analyzed locally in your browser.')));
 }
 
 function renderMessage({ title, text, error = false, retry = false }) {
   setPressed();
   clear($view).append(h('div', { class: `state${error ? ' error' : ''}` },
-    h('div', { class: 'state-icon' }, icon(error ? 'alert' : 'info', 26)),
+    h('span', { class: 'state-label' }, error ? 'Error' : 'Note'),
     h('h2', {}, title),
     h('p', {}, text),
-    retry ? h('button', { class: 'btn primary', type: 'button', onclick: () => runScan() }, icon('refresh', 14), 'Try again') : null));
+    retry ? h('button', { class: 'btn primary', type: 'button', onclick: () => runScan() }, 'Try again') : null));
 }
 
 function renderWelcome() {
   setPressed();
   $scan.textContent = 'Scan';
   const features = [
-    ['shield', 'Security headers & CSP'], ['gauge', 'Core Web Vitals'], ['search', 'SEO & social previews'],
-    ['person', 'Accessibility & contrast'], ['eyeOff', 'Trackers & privacy'], ['layers', '400+ technologies'],
+    'Security headers & CSP', 'Core Web Vitals', 'SEO & social previews',
+    'Accessibility & contrast', 'Trackers & privacy', '400+ technologies',
   ];
   clear($view).append(h('div', { class: 'state' },
-    h('div', { class: 'state-icon' }, logo(30)),
+    h('span', { class: 'state-label' }, 'Site auditor'),
     h('h2', {}, 'Audit this page'),
     h('p', {}, 'Scanline checks security, speed, SEO, accessibility and privacy, and identifies the tech stack, without sending anything to a server.'),
-    h('button', { class: 'btn primary', type: 'button', onclick: () => runScan() }, icon('zap', 14), 'Scan this page'),
-    h('ul', { class: 'feature-list' }, features.map(([ic, text]) => h('li', {}, icon(ic, 15), text)))));
+    h('button', { class: 'btn primary', type: 'button', onclick: () => runScan() }, 'Scan this page'),
+    h('ul', { class: 'feature-list' }, features.map((text) => h('li', {}, text)))));
 }
 
 function renderResults() {
@@ -239,11 +238,10 @@ function renderResults() {
   frag.append(hero(r));
 
   if (!r.insights.page.headersCaptured) {
-    frag.append(h('div', { class: 'banner s-warn', style: { marginTop: '10px' } },
-      icon('alert', 16),
-      h('div', { class: 'banner-body' },
-        h('span', {}, 'Response headers weren’t captured because this page loaded before Scanline was active. Header, cookie and server checks are incomplete.'),
-        h('div', {}, h('button', { class: 'btn small', type: 'button', onclick: () => runScan({ reload: true }) }, icon('refresh', 13), 'Reload page & rescan')))));
+    frag.append(h('div', { class: 'banner s-warn', style: { marginTop: '14px' } },
+      h('span', { class: 'banner-label' }, 'Headers missing'),
+      h('span', {}, 'Response headers weren’t captured because this page loaded before Scanline was active. Header, cookie and server checks are incomplete.'),
+      h('div', {}, h('button', { class: 'btn small', type: 'button', onclick: () => runScan({ reload: true }) }, 'Reload page & rescan'))));
   }
 
   const tablist = h('div', { class: 'tabs', role: 'tablist', 'aria-label': 'Report sections' });
@@ -302,7 +300,7 @@ function hero(r) {
   } catch { /* ignore */ }
   const c = state.comparison;
   return h('section', { class: 'hero', 'aria-label': 'Scores' },
-    ring(s.overall, { size: 96, grade: s.grade }),
+    scoreFigure(s.overall, { grade: s.grade }),
     h('div', { class: 'hero-main' },
       h('div', { class: 'hero-host', title: r.url }, r.host || r.url),
       h('div', { class: 'hero-meta' },
@@ -311,10 +309,9 @@ function hero(r) {
       h('div', { class: 'cat-rows' }, CATEGORIES.map((cat) => {
         const cs = s.categories[cat.id];
         return h('button', { class: `cat-row tone-${tone(cs.score)}`, type: 'button', onclick: () => selectTab(cat.id), title: `${cat.label}: ${cs.counts.fail} failed, ${cs.counts.warn} warnings` },
-          h('span', { class: 'cat-icon' }, icon(CATEGORY_ICONS[cat.id], 13)),
           h('span', { class: 'cat-name' }, cat.label),
           bar(cs.score),
-          h('span', { class: 'cat-score' }, cs.score ?? '–'));
+          h('span', { class: 'cat-score' }, cs.score ?? '-'));
       }))));
 }
 
@@ -342,33 +339,31 @@ function overviewPanel(r) {
 
   frag.append(countsLine(r.scores.counts));
   const issues = topIssues(r.checks, 6);
-  frag.append(h('h3', { class: 'section-title' }, 'Top issues', issues.length ? h('button', { class: 'link-btn', type: 'button', onclick: openReport }, 'Full report') : null));
+  frag.append(sectionTitle('Top issues', issues.length ? h('button', { class: 'link-btn more', type: 'button', onclick: openReport }, 'Full report') : null));
   if (issues.length) frag.append(h('div', {}, issues.map((ch) => checkItem(ch, { onHighlight, showCategory: true }))));
-  else frag.append(h('div', { class: 'empty' }, icon('check', 18), 'No issues found. Nice work.'));
+  else frag.append(h('div', { class: 'empty' }, 'No issues found.'));
 
-  frag.append(h('h3', { class: 'section-title' }, 'Page facts'), keyFacts(r));
+  frag.append(sectionTitle('Page facts'), keyFacts(r));
 
   const shown = r.stack.filter((t) => !t.implied && t.cat !== 'platform');
-  frag.append(h('h3', { class: 'section-title' }, 'Technologies',
-    h('button', { class: 'link-btn', type: 'button', onclick: () => selectTab('stack') }, `See all ${r.stack.length}`)));
+  frag.append(sectionTitle('Technologies',
+    h('button', { class: 'link-btn more', type: 'button', onclick: () => selectTab('stack') }, `All ${r.stack.length}`)));
   frag.append(shown.length ? stackChips(r.stack) : h('p', { class: 'muted' }, 'No technologies detected.'));
 
   if (!r.deep) {
-    const btn = h('button', { class: 'btn small', type: 'button' }, icon('zap', 13), h('span', {}, 'Run deep scan'));
+    const btn = h('button', { class: 'btn small', type: 'button' }, h('span', {}, 'Run deep scan'));
     btn.addEventListener('click', () => runDeep(btn));
-    frag.append(h('div', { class: 'overview-card' },
-      h('span', { class: 'oc-icon' }, icon('globe', 17)),
-      h('div', { class: 'oc-text' },
-        h('span', { class: 'oc-title' }, 'Deep scan (optional)'),
-        h('span', { class: 'oc-desc' }, 'Checks robots.txt, sitemap, security.txt and this site’s JS bundles for leaked keys. Contacts only this site.')),
+    frag.append(h('div', { class: 'deep' },
+      h('span', { class: 'deep-label' }, 'Deep scan ', h('em', {}, '(optional)')),
+      h('span', { class: 'deep-desc' }, 'Reads robots.txt, sitemap, security.txt and this site’s JS bundles for leaked keys. Only contacts this site.'),
       btn));
   } else {
     frag.append(h('p', { class: 'hint' }, `Site files checked ${relativeTime(r.deep.ranAt)}.`));
   }
 
   frag.append(h('div', { class: 'actions-row' },
-    h('button', { class: 'btn', type: 'button', onclick: openReport }, icon('file', 14), 'Full report & export'),
-    h('button', { class: 'btn', type: 'button', onclick: async () => toast((await copyText(summaryText(r))) ? 'Summary copied' : 'Copy failed') }, icon('copy', 14), 'Copy summary')));
+    h('button', { class: 'btn', type: 'button', onclick: openReport }, 'Full report & export'),
+    h('button', { class: 'btn', type: 'button', onclick: async () => toast((await copyText(summaryText(r))) ? 'Summary copied' : 'Copy failed') }, 'Copy summary')));
   return frag;
 }
 
@@ -381,7 +376,7 @@ function categoryPanel(r, id) {
 
   const listHost = h('div', {});
   const renderList = () => clear(listHost).append(checkGroups(checks, { filter: state.filter, onHighlight }));
-  const seg = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Filter checks' });
+  const seg = h('div', { class: 'chips-filter', role: 'group', 'aria-label': 'Filter checks' });
   for (const [value, label] of [['all', `All ${checks.length}`], ['issues', `Issues ${issueCount}`]]) {
     seg.append(h('button', {
       type: 'button', 'aria-pressed': String(state.filter === value),
@@ -393,12 +388,12 @@ function categoryPanel(r, id) {
     }, label));
   }
   frag.append(h('div', { class: 'panel-head' },
-    h('h2', {}, icon(CATEGORY_ICONS[id], 16), cat.label, h('span', { class: `score-chip tone-${tone(cs.score)}` }, cs.score ?? '–')),
+    h('h2', {}, cat.label, h('span', { class: `score-chip tone-${tone(cs.score)}` }, cs.score ?? '-')),
     seg));
 
-  if (id === 'performance') frag.append(h('div', { style: { marginBottom: '12px' } }, vitalsGrid(r.insights.vitals)));
+  if (id === 'performance') frag.append(h('div', { style: { margin: '8px 0 6px' } }, vitalsGrid(r.insights.vitals)));
   if (id === 'seo') {
-    frag.append(h('div', { style: { display: 'grid', gap: '8px', marginBottom: '12px' } },
+    frag.append(h('div', { style: { display: 'grid', gap: '8px', margin: '8px 0 6px' } },
       serpPreview(r.insights.seo, r.host), socialPreview(r.insights.seo, r.host)));
   }
 
@@ -439,7 +434,7 @@ function stackPanel(r) {
     state.stackQuery = input.value;
     renderList();
   });
-  frag.append(h('div', { class: 'stack-tools' }, h('div', { class: 'search-wrap' }, icon('search', 14), input)));
+  frag.append(h('div', { class: 'stack-tools' }, input));
   renderList();
   frag.append(listHost);
   frag.append(section('Fonts & colors', designSection(r.insights.design, { onCopy: async (hex) => toast((await copyText(hex)) ? `Copied ${hex}` : 'Copy failed') }), false));
@@ -448,8 +443,12 @@ function stackPanel(r) {
 
 function section(title, content, open = false) {
   return h('details', { class: 'section', open: open || undefined },
-    h('summary', {}, title, h('span', { class: 'chev' }, icon('chevron', 14))),
+    h('summary', {}, title),
     h('div', { class: 'section-body' }, content));
+}
+
+function sectionTitle(label, more) {
+  return h('h3', { class: 'section-title' }, h('span', {}, label), more);
 }
 
 // ---------------------------------------------------------------- history
@@ -458,7 +457,7 @@ async function renderHistory() {
   setPressed();
   const list = await getHistory();
   const body = h('div', { class: 'history-list' });
-  if (!list.length) body.append(h('div', { class: 'empty' }, icon('clock', 18), state.settings.history ? 'No scans yet.' : 'History is turned off in settings.'));
+  if (!list.length) body.append(h('div', { class: 'empty' }, state.settings.history ? 'No scans yet.' : 'History is turned off in settings.'));
   for (const e of list) {
     let path = '';
     try {
@@ -474,17 +473,17 @@ async function renderHistory() {
     h('span', { class: 'history-time' }, relativeTime(e.at))));
   }
   clear($view).append(
+    backLink('history'),
     h('div', { class: 'subhead' },
-      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Back', onclick: () => toggleView('history') }, icon('back', 16)),
       h('h2', {}, 'History'),
       list.length ? h('button', {
-        class: 'btn small ghost', type: 'button',
+        class: 'link-btn', type: 'button',
         onclick: async () => {
           await clearHistory();
           toast('History cleared');
           renderHistory();
         },
-      }, icon('trash', 13), 'Clear') : null),
+      }, 'Clear all') : null),
     body);
 }
 
@@ -505,32 +504,24 @@ function renderSettings() {
       h('span', { class: 'switch' }, input, h('span', { class: 'switch-track' })));
   };
 
-  const theme = h('div', { class: 'segmented', role: 'group', 'aria-label': 'Theme' });
-  for (const [value, label] of [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]) {
-    theme.append(h('button', {
-      type: 'button', 'aria-pressed': String(s.theme === value),
-      onclick: async (e) => {
-        state.settings = await saveSettings({ theme: value });
-        applyTheme(value);
-        for (const b of theme.children) b.setAttribute('aria-pressed', String(b === e.currentTarget));
-      },
-    }, label));
-  }
-
   clear($view).append(
-    h('div', { class: 'subhead' },
-      h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Back', onclick: () => toggleView('settings') }, icon('back', 16)),
-      h('h2', {}, 'Settings')),
+    backLink('settings'),
+    h('div', { class: 'subhead' }, h('h2', {}, 'Settings')),
     h('div', { class: 'settings' },
-      h('div', { class: 'setting' }, h('span', { class: 'setting-text' }, h('span', { class: 'setting-title' }, 'Theme')), theme),
       toggle('autoScan', 'Scan when opened', 'Start a scan as soon as you open Scanline.'),
       toggle('badge', 'Score on toolbar icon', 'Show the last score for each tab on the Scanline icon.'),
       toggle('history', 'Keep scan history', 'Store results locally so you can compare scans over time.'),
       h('div', { class: 'setting' },
-        h('span', { class: 'setting-text' }, h('span', { class: 'setting-title' }, 'Keyboard shortcut'), h('span', { class: 'setting-desc' }, 'Default: Alt+Shift+S. Change it in Chrome’s shortcut settings.')),
+        h('span', { class: 'setting-text' },
+          h('span', { class: 'setting-title' }, 'Keyboard shortcut'),
+          h('span', { class: 'setting-desc' }, h('kbd', {}, 'Alt'), ' + ', h('kbd', {}, 'Shift'), ' + ', h('kbd', {}, 'S'), ' by default. Change it in Chrome’s shortcut settings.')),
         h('button', { class: 'btn small', type: 'button', onclick: () => chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }) }, 'Edit'))),
     h('p', { class: 'about' },
       `Scanline ${EXT_VERSION}. All analysis runs inside your browser. Scan results and settings are stored only in this browser's local extension storage. The optional deep scan fetches robots.txt, sitemap, security.txt and scripts from the scanned site itself, and only when you click it.`));
+}
+
+function backLink(view) {
+  return h('button', { class: 'back', type: 'button', onclick: () => toggleView(view) }, 'Back');
 }
 
 init().catch((e) => {
