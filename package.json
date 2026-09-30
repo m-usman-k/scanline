@@ -1,6 +1,6 @@
 {
   "name": "scanline",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "description": "Chrome extension that audits websites locally: tech stack, security, performance, SEO, accessibility and privacy.",
   "type": "module",

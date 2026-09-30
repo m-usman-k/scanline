@@ -1,6 +1,6 @@
 // Small, dependency-free helpers shared by the popup, report page and tests.
 
-export const EXT_VERSION = '2.0.0';
+export const EXT_VERSION = '2.1.0';
 export const RESULT_SCHEMA = 2;
 
 export function parseVersion(input) {
