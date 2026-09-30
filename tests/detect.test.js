@@ -94,3 +94,21 @@ test('GitHub Pages is not reported for github.com itself', () => {
   const pages = detectStack({ url: 'https://docs.example.org/', signals: {}, probe: {}, headers: [['server', 'GitHub.com']] });
   assert.ok(byName(pages, 'GitHub Pages'));
 });
+
+test('lists each piece of evidence once when several rules match one URL', () => {
+  const stack = detectStack({
+    url: 'https://shop.example.com/',
+    signals: {
+      scripts: ['https://cdn.jsdelivr.net/npm/jquery@3.4.1/dist/jquery.min.js'],
+      styles: [], meta: {}, selectors: [], cssVars: {}, cookies: [], comments: [],
+      ids: { ga4: [], ua: [], gtm: [], aw: [] },
+    },
+    probe: { globals: {}, special: {} },
+    headers: [],
+    resources: [],
+  });
+  const jquery = byName(stack, 'jQuery');
+  assert.ok(jquery, 'jQuery detected');
+  assert.equal(new Set(jquery.evidence).size, jquery.evidence.length, `duplicate evidence: ${jquery.evidence.join(' | ')}`);
+  assert.equal(jquery.version, '3.4.1');
+});

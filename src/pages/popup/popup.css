@@ -117,7 +117,7 @@ body {
 
 .tabs {
   position: sticky;
-  top: 61px;
+  top: 64px;
   z-index: 15;
   display: flex;
   justify-content: space-between;

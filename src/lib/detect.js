@@ -58,7 +58,8 @@ function matchTech(tech, ctx) {
   const evidence = [];
   let version = null;
   const note = (text, v) => {
-    if (evidence.length < 4) evidence.push(text);
+    // Several rules can match the same URL; list each piece of evidence once.
+    if (evidence.length < 4 && !evidence.includes(text)) evidence.push(text);
     if (!version && v) version = cleanVersion(v);
   };
 
