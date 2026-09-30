@@ -6,7 +6,6 @@
   "description": "Audit any site locally: tech stack, security headers, Core Web Vitals, SEO, accessibility & privacy. Nothing leaves your browser.",
   "minimum_chrome_version": "116",
   "permissions": [
-    "activeTab",
     "scripting",
     "storage",
     "webRequest"
